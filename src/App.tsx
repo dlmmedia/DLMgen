@@ -7,6 +7,7 @@ import { TRACKS } from './data/tracks';
 import { CreateForm } from './components/CreateForm';
 import { generateSongMetadata, generateAlbumArt } from './services/gemini';
 import { selectTrackForMetadata } from './utils/mockGenerator';
+import { saveSong, loadSongs, storedSongToTrack, trackToSaveParams } from './services/songStorage';
 import { CreateSongParams, Track } from './types';
 import { Menu } from 'lucide-react';
 
@@ -17,21 +18,33 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Load initial state from localStorage
-  const [generatedTracks, setGeneratedTracks] = useState<Track[]>(() => {
-    try {
-      const saved = localStorage.getItem('dlm_generated_tracks');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("Failed to load tracks", e);
-      return [];
-    }
-  });
+  // Load songs from Vercel Blob storage
+  const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
+  const [isLoadingSongs, setIsLoadingSongs] = useState(true);
 
-  // Save to localStorage whenever tracks change
+  // Load songs from Blob storage on mount
   useEffect(() => {
-    localStorage.setItem('dlm_generated_tracks', JSON.stringify(generatedTracks));
-  }, [generatedTracks]);
+    const fetchSongs = async () => {
+      try {
+        setIsLoadingSongs(true);
+        const songs = await loadSongs();
+        const tracks = songs.map(storedSongToTrack);
+        setGeneratedTracks(tracks);
+      } catch (e) {
+        console.error("Failed to load tracks from storage", e);
+        // Fallback to localStorage if Blob storage fails
+        try {
+          const saved = localStorage.getItem('dlm_generated_tracks');
+          if (saved) setGeneratedTracks(JSON.parse(saved));
+        } catch (localErr) {
+          console.error("Failed to load from localStorage", localErr);
+        }
+      } finally {
+        setIsLoadingSongs(false);
+      }
+    };
+    fetchSongs();
+  }, []);
 
   // Initialize with a random track but don't play
   useEffect(() => {
@@ -112,18 +125,37 @@ export default function App() {
       // 3. Generate Album Art (Async or just placeholder)
       const coverUrl = await generateAlbumArt(metadata.description);
 
+      // Check if coverUrl is base64 (generated) or URL
+      const isBase64Cover = coverUrl.startsWith('data:');
+
       // 4. Create new Track
+      const newTrackId = `gen-${Date.now()}`;
       const newTrack: Track = {
         ...selectedTrack,
-        id: `gen-${Date.now()}`,
+        id: newTrackId,
         title: metadata.title,
         artist: 'AI Composer',
         coverUrl: coverUrl,
         lyrics: metadata.lyrics,
         styleTags: metadata.styleTags,
         description: metadata.description,
-        isInstrumental: params.isInstrumental
+        isInstrumental: params.isInstrumental,
+        createdAt: Date.now()
       };
+
+      // 5. Save to Vercel Blob storage
+      try {
+        const saveParams = trackToSaveParams(newTrack, isBase64Cover ? coverUrl : undefined);
+        const savedSong = await saveSong(saveParams);
+        // Update track with blob-stored cover URL if it was uploaded
+        if (savedSong.coverUrl) {
+          newTrack.coverUrl = savedSong.coverUrl;
+        }
+        console.log('Song saved to Vercel Blob:', savedSong);
+      } catch (saveError) {
+        console.error('Failed to save to Blob storage, keeping in local state:', saveError);
+        // Still continue - song will work locally even if cloud save fails
+      }
 
       setGeneratedTracks(prev => [newTrack, ...prev]);
       setCurrentTrack(newTrack);
