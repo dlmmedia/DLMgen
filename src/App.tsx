@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Player } from './components/Player';
 import { HeroVisualizer } from './components/HeroVisualizer';
@@ -8,6 +8,7 @@ import { CreateForm } from './components/CreateForm';
 import { generateSongMetadata, generateAlbumArt } from './services/gemini';
 import { selectTrackForMetadata } from './utils/mockGenerator';
 import { saveSong, loadSongs, storedSongToTrack, trackToSaveParams } from './services/songStorage';
+import { generateElevenLabsTrack } from './services/elevenlabs';
 import { CreateSongParams, Track } from './types';
 import { Menu } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export default function App() {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Load songs from Vercel Blob storage
   const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
@@ -111,16 +113,32 @@ export default function App() {
         params.customTitle
       );
 
-      // Artificial delay to simulate "Generation" and let the animation play
-      // The user requested ~5 seconds.
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      let audioUrl = "";
+      let selectedTrackString = "";
 
-      // 2. Select a matching track
-      const selectedTrack = selectTrackForMetadata(
-        metadata,
-        TRACKS,
-        generatedTracks.map(t => t.id) // Pass IDs to exclude
-      );
+      if (params.isCustom) {
+        // Real Generation via ElevenLabs
+        const blob = await generateElevenLabsTrack(params);
+        audioUrl = URL.createObjectURL(blob);
+        selectedTrackString = "Custom Generated Track";
+      } else {
+        // Mock selection for Simple Mode (or could use 11Labs too if desired, but sticking to plan)
+        // Actually, let's use 11Labs for everything if we can, but per plan "in the custom mode we use eleveblabs"
+        // So preserve mock for simple mode if desired, BUT the user request said "integrate a full ElevenLabs api music generation system... but in the custom mode we use eleveblabs music generation"
+        // Let's assume Simple mode stays as is (mock) for now unless user specified otherwise, or use 11Labs for custom. 
+        // Wait, user said "integrate a full ElevenLabs api music generation system we will keep the url system intact. but in the custom mode we use eleveblabs music generation."
+        // This implies Simple might still stick to URLs? Or maybe Simple should also use it?
+        // Let's adhere strictly: "in the custom mode we use eleveblabs".
+
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Mock delay
+        const selectedTrack = selectTrackForMetadata(
+          metadata,
+          TRACKS,
+          generatedTracks.map(t => t.id)
+        );
+        audioUrl = selectedTrack.url;
+        selectedTrackString = selectedTrack.title;
+      }
 
       // 3. Generate Album Art (Async or just placeholder)
       const coverUrl = await generateAlbumArt(metadata.description);
@@ -131,10 +149,13 @@ export default function App() {
       // 4. Create new Track
       const newTrackId = `gen-${Date.now()}`;
       const newTrack: Track = {
-        ...selectedTrack,
         id: newTrackId,
         title: metadata.title,
         artist: 'AI Composer',
+        url: audioUrl, // Use the generated or selected URL
+        audioUrl: audioUrl, // Duplicate for safety
+        genre: metadata.styleTags?.[0] as any || 'Other', // Approximate genre
+        duration: params.isCustom ? params.durationSeconds : 180, // Use selected duration for ElevenLabs
         coverUrl: coverUrl,
         lyrics: metadata.lyrics,
         styleTags: metadata.styleTags,
@@ -190,7 +211,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto custom-scrollbar pb-32">
           {activeTab === 'home' && (
             <div className="p-6 md:p-8">
-              <HeroVisualizer isPlaying={isPlaying} />
+<HeroVisualizer isPlaying={isPlaying} audioElement={audioRef.current} />
               <h2 className="text-2xl font-bold mt-8 mb-4">Trending Now</h2>
             </div>
           )}
@@ -215,13 +236,14 @@ export default function App() {
         </div>
       </main>
 
-      <Player
+<Player
         currentTrack={currentTrack}
         isPlaying={isPlaying}
         onPlayPause={() => setIsPlaying(!isPlaying)}
         onNext={handleNext}
         onPrev={handlePrev}
         onEnded={handleNext}
+        audioRef={audioRef}
       />
     </div>
   );

@@ -29,10 +29,10 @@ export const GenerationLoader = () => {
 
                 {/* Orbital particles */}
                 <div className="absolute inset-0 animate-spin-slow">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_10px_#60A5FA]" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-primary rounded-full shadow-[0_0_10px_rgba(153,27,27,0.8)]" />
                 </div>
                 <div className="absolute inset-0 animate-spin-reverse-slower">
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-purple-400 rounded-full shadow-[0_0_10px_#C084FC]" />
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-accent rounded-full shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
                 </div>
             </div>
 
@@ -43,7 +43,7 @@ export const GenerationLoader = () => {
                 {steps.map((_, i) => (
                     <div
                         key={i}
-                        className={`h-1 rounded-full transition-all duration-500 ${i <= step ? 'w-8 bg-primary shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'w-2 bg-gray-800'}`}
+                        className={`h-1 rounded-full transition-all duration-500 ${i <= step ? 'w-8 bg-primary shadow-[0_0_10px_rgba(153,27,27,0.5)]' : 'w-2 bg-gray-800'}`}
                     />
                 ))}
             </div>

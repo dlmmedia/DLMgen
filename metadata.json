@@ -1,5 +1,5 @@
 {
-  "name": "SonoAI Music Generator",
-  "description": "A powerful AI music creation suite inspired by Suno. Generates lyrics, album art, and song concepts using Gemini models.",
+  "name": "DLM Gen",
+  "description": "A powerful AI music creation suite. Generates lyrics, album art, and song concepts using Gemini models.",
   "requestFramePermissions": []
 }

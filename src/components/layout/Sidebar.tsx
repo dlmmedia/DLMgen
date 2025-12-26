@@ -1,13 +1,16 @@
 import React from 'react';
 import { Home, Compass, Library, Heart, Radio, ListMusic, User, PlusCircle } from 'lucide-react';
+import { AnimatedLogo } from '../AnimatedLogo';
 
 interface SidebarProps {
     activeTab: string;
     setActiveTab: (tab: string) => void;
     isOpen: boolean;
+    isPlaying?: boolean;
+    analyser?: AnalyserNode | null;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, isPlaying, analyser }) => {
     const mainMenu = [
         { id: 'home', label: 'Home', icon: Home },
         { id: 'create', label: 'Create', icon: PlusCircle },
@@ -33,10 +36,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
     `}>
             <div className="p-6">
                 <div className="flex items-center gap-2 px-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-purple-900/40">
-                        <Radio className="text-white" size={18} />
-                    </div>
-                    <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                    <AnimatedLogo isPlaying={isPlaying || false} analyser={analyser} />
+                    <h1
+                        className="text-xl font-bold tracking-tight bg-clip-text text-transparent flex flex-wrap font-mono"
+                        style={{
+                            backgroundImage: 'linear-gradient(90deg, rgba(255, 255, 255, 1) 44%, rgba(255, 0, 0, 1) 100%)',
+                            WebkitBackgroundClip: 'text',
+                            color: 'transparent'
+                        }}
+                    >
                         DLM Gen
                     </h1>
                 </div>

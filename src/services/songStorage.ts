@@ -38,10 +38,20 @@ export async function saveSong(params: SaveSongParams): Promise<StoredSong> {
     body: JSON.stringify(params),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || 'Failed to save song');
+  const contentType = response.headers.get('content-type');
+  if (!response.ok || (contentType && contentType.includes('text/html'))) {
+    console.warn('API unavailable, saving to localStorage');
+    const newSong: StoredSong = {
+      ...params,
+      url: params.audioUrl, // Map audioUrl to url required by Track/StoredSong
+      createdAt: Date.now()
+    };
+    const existing = JSON.parse(localStorage.getItem('dlm_gen_songs') || '[]');
+    existing.unshift(newSong);
+    localStorage.setItem('dlm_gen_songs', JSON.stringify(existing));
+    return newSong;
   }
+
 
   const data = await response.json();
   return data.song as StoredSong;
@@ -59,16 +69,40 @@ export async function loadSongs(): Promise<StoredSong[]> {
       },
     });
 
-    if (!response.ok) {
-      console.error('Failed to load songs from storage');
-      return [];
+    // Handle HTML response (Vite 404 fallback) or non-ok status
+    const contentType = response.headers.get('content-type');
+    if (!response.ok || (contentType && contentType.includes('text/html'))) {
+      console.warn('API unavailable, falling back to localStorage');
+      const localSongs = localStorage.getItem('dlm_gen_songs');
+      return localSongs ? JSON.parse(localSongs) : [];
     }
 
-    const data = await response.json();
-    return data.songs as StoredSong[];
+    // Check if response is actually JSON before parsing
+    const text = await response.text();
+    if (!text || !text.trim().startsWith('{')) {
+      console.warn('API returned non-JSON response, falling back to localStorage');
+      const localSongs = localStorage.getItem('dlm_gen_songs');
+      return localSongs ? JSON.parse(localSongs) : [];
+    }
+
+    try {
+      const data = JSON.parse(text);
+      return data.songs as StoredSong[];
+    } catch (parseError) {
+      console.warn('Failed to parse API response as JSON, falling back to localStorage', parseError);
+      const localSongs = localStorage.getItem('dlm_gen_songs');
+      return localSongs ? JSON.parse(localSongs) : [];
+    }
   } catch (error) {
     console.error('Error loading songs:', error);
-    return [];
+    // Fallback to localStorage on any error
+    try {
+      const localSongs = localStorage.getItem('dlm_gen_songs');
+      return localSongs ? JSON.parse(localSongs) : [];
+    } catch (localError) {
+      console.error('Failed to load from localStorage:', localError);
+      return [];
+    }
   }
 }
 
@@ -130,5 +164,6 @@ export function storedSongToTrack(song: StoredSong): Track {
     styleTags: song.styleTags,
     description: song.description,
     isInstrumental: song.isInstrumental,
+    createdAt: song.createdAt,
   };
 }

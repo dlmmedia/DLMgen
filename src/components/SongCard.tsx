@@ -1,80 +1,77 @@
 import React from 'react';
-import { Song } from '../types';
-import { Play, Pause, MoreHorizontal, Heart } from 'lucide-react';
+import { Track } from '../types';
+import { Play, Pause, Music } from 'lucide-react';
 
 interface SongCardProps {
-  song: Song;
-  isPlaying: boolean;
-  isActive: boolean;
-  onPlay: (song: Song) => void;
-  onPause: () => void;
+    track: Track;
+    onPlay: (track: Track) => void;
+    isPlaying?: boolean;
+    isCurrent?: boolean;
 }
 
-export const SongCard: React.FC<SongCardProps> = ({ song, isPlaying, isActive, onPlay, onPause }) => {
-  const handlePlayClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isActive && isPlaying) {
-      onPause();
-    } else {
-      onPlay(song);
+const formatNumber = (num: number): string => {
+    if (num >= 1000) {
+        return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
     }
-  };
+    return num.toString();
+};
 
-  return (
-    <div className={`group relative flex items-center p-3 rounded-md hover:bg-white/5 transition-colors cursor-pointer ${isActive ? 'bg-white/10' : ''}`}>
-      {/* Image / Play Overlay */}
-      <div className="relative w-16 h-16 flex-shrink-0 mr-4">
-        <img 
-          src={song.imageUrl} 
-          alt={song.title} 
-          className="w-full h-full object-cover rounded-md shadow-lg"
-        />
-        <div 
-          onClick={handlePlayClick}
-          className={`absolute inset-0 bg-black/40 flex items-center justify-center rounded-md transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+export const SongCard: React.FC<SongCardProps> = ({ track, onPlay, isPlaying, isCurrent }) => {
+    return (
+        <div
+            onClick={() => onPlay(track)}
+            className="group bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 active:scale-95 shadow-lg hover:shadow-primary/5"
         >
-          {isActive && isPlaying ? (
-            <Pause className="text-white w-8 h-8 fill-current" />
-          ) : (
-            <Play className="text-white w-8 h-8 fill-current" />
-          )}
-        </div>
-        {song.status === 'generating' && (
-           <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-md">
-             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-           </div>
-        )}
-      </div>
+            {/* Cover Image */}
+            <div className="relative aspect-square mb-4 rounded-xl overflow-hidden bg-white/5 shadow-inner">
+                {track.coverUrl ? (
+                    <img
+                        src={track.coverUrl}
+                        alt={track.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                ) : (
+                    <div className="flex items-center justify-center h-full text-white/20">
+                        <Music size={40} />
+                    </div>
+                )}
 
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <h3 className={`font-bold text-base truncate ${isActive ? 'text-primary' : 'text-white'}`}>
-          {song.title || 'Untitled Song'}
-        </h3>
-        <p className="text-sm text-gray-400 truncate hover:underline cursor-pointer">
-          {song.artist}
-        </p>
-        <div className="flex gap-2 mt-1">
-          {song.style && song.style.split(',').slice(0, 3).map((tag, i) => (
-            <span key={i} className="text-xs text-gray-500 border border-gray-700 px-1.5 py-0.5 rounded-full truncate max-w-[100px]">
-              {tag.trim()}
-            </span>
-          ))}
-        </div>
-      </div>
+                {/* Play overlay */}
+                <div className={`absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center transition-all duration-300 ${isCurrent && isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                    <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-2xl transform transition-transform duration-300 group-hover:scale-110">
+                        {isCurrent && isPlaying ? (
+                            <Pause className="text-white fill-current" size={28} />
+                        ) : (
+                            <Play className="text-white fill-current ml-1" size={28} />
+                        )}
+                    </div>
+                </div>
+            </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-4 ml-4 text-gray-400">
-        <span className="text-xs hidden sm:block">
-           {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
-        </span>
-        <button className="hover:text-white hover:scale-110 transition-transform">
-            <Heart className="w-5 h-5" />
-        </button>
-        <button className="hover:text-white">
-            <MoreHorizontal className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
-  );
+            {/* Content */}
+            <div className="space-y-1">
+                <h3 className={`font-bold text-base truncate ${isCurrent ? 'text-primary' : 'text-white/90'}`}>
+                    {track.title}
+                </h3>
+
+                <p className="text-xs text-white/40 font-medium truncate">
+                    {track.artist} • {track.genre}
+                </p>
+            </div>
+
+            {/* Stats */}
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5 text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 group-hover:text-primary transition-colors">
+                        <Play size={10} className="fill-current" /> {formatNumber(track.plays || 0)}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 group-hover:text-accent transition-colors">
+                        ❤ {formatNumber(track.likes || 0)}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
 };

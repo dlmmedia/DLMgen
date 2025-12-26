@@ -9,10 +9,12 @@ interface PlayerProps {
   onNext: () => void;
   onPrev: () => void;
   onEnded?: () => void;
+  audioRef?: React.RefObject<HTMLAudioElement | null>;
 }
 
-export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayPause, onNext, onPrev, onEnded }) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
+export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayPause, onNext, onPrev, onEnded, audioRef: externalAudioRef }) => {
+  const internalAudioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = externalAudioRef || internalAudioRef;
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
 
@@ -95,23 +97,31 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
           <Repeat size={16} className="text-zinc-500 hover:text-white cursor-pointer" />
         </div>
 
-        <div className="w-full flex items-center gap-2 text-xs text-zinc-500 font-medium">
-          <span>{formatTime(progress)}</span>
-          <div className="relative flex-1 group h-1">
+        <div className="w-full flex items-center gap-3 text-[10px] text-white/30 font-bold uppercase tracking-widest">
+          <span className="w-10 text-right">{formatTime(progress)}</span>
+          <div className="relative flex-1 group h-1.5">
             <input
               type="range"
               min={0}
               max={duration || 100}
               value={progress}
               onChange={handleSeek}
-              className="absolute w-full h-full opacity-0 cursor-pointer z-10"
+              className="absolute w-full h-full opacity-0 cursor-pointer z-20"
             />
-            <div className="absolute inset-0 bg-zinc-800 rounded-full overflow-hidden">
-              <div className="h-full bg-white transition-all" style={{ width: `${(progress / (duration || 1)) * 100}%` }} />
+            <div className="absolute inset-0 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all relative"
+                style={{ width: `${(progress / (duration || 1)) * 100}%` }}
+              >
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white/30 to-transparent" />
+              </div>
             </div>
-            <div className="hidden group-hover:block absolute w-3 h-3 bg-white rounded-full -top-1" style={{ left: `${(progress / (duration || 1)) * 100}%` }} />
+            <div
+              className="absolute w-3 h-3 bg-white rounded-full -top-[3px] shadow-[0_0_10px_rgba(255,255,255,0.5)] transform scale-0 group-hover:scale-100 transition-transform duration-200"
+              style={{ left: `calc(${(progress / (duration || 1)) * 100}% - 6px)` }}
+            />
           </div>
-          <span>{formatTime(duration)}</span>
+          <span className="w-10">{formatTime(duration)}</span>
         </div>
       </div>
 

@@ -1,12 +1,31 @@
 import React, { useState } from 'react';
-import { Mic, Music, Sparkles, Wand2, Disc, Layers } from 'lucide-react';
-import { CreateSongParams } from '../types';
+import { Mic, Music, Sparkles, Wand2, Disc, Layers, Clock, User, Users, Sliders } from 'lucide-react';
+import { CreateSongParams, VocalStyle } from '../types';
 import { GenerationLoader } from './GenerationLoader';
 
 interface CreateFormProps {
     onSubmit: (params: CreateSongParams) => void;
     isGenerating: boolean;
 }
+
+// Duration options in seconds
+const DURATION_OPTIONS = [
+    { value: 30, label: '30s' },
+    { value: 60, label: '1 min' },
+    { value: 90, label: '1:30' },
+    { value: 120, label: '2 min' },
+    { value: 180, label: '3 min' },
+    { value: 300, label: '5 min' },
+];
+
+// Vocal style options
+const VOCAL_STYLES: { value: VocalStyle; label: string; icon: React.ReactNode }[] = [
+    { value: 'auto', label: 'Auto', icon: <Sparkles size={12} /> },
+    { value: 'male', label: 'Male', icon: <User size={12} /> },
+    { value: 'female', label: 'Female', icon: <User size={12} /> },
+    { value: 'duet', label: 'Duet', icon: <Users size={12} /> },
+    { value: 'choir', label: 'Choir', icon: <Users size={12} /> },
+];
 
 export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }) => {
     const [isCustom, setIsCustom] = useState(false);
@@ -18,6 +37,12 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
     const [style, setStyle] = useState('');
     const [title, setTitle] = useState('');
 
+    // New ElevenLabs parameters
+    const [durationSeconds, setDurationSeconds] = useState(60);
+    const [vocalStyle, setVocalStyle] = useState<VocalStyle>('auto');
+    const [bpm, setBpm] = useState<number | undefined>(undefined);
+    const [keySignature, setKeySignature] = useState<string>('');
+
     const inspirationTags = [
         "Cyberpunk Action", "Lo-Fi Study", "Epic Orchestral",
         "Dark Techno", "Acoustic Ballad", "Synthwave Drive"
@@ -27,16 +52,23 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
         if ((!isCustom && !prompt) || (isCustom && !lyrics && !isInstrumental && !style)) return;
 
         onSubmit({
-            prompt: isCustom ? (style + " " + title) : prompt,
+            prompt: isCustom ? '' : prompt, // In custom mode, prompt is built from other fields in backend, or we can send empty string if we want backend to rely on other fields
             isCustom,
+            // Pass raw values for backend to construct prompt
+            lyrics: isCustom ? lyrics : undefined,
+            style: isCustom ? style : undefined,
+            title: isCustom ? title : undefined,
+
             customLyrics: lyrics,
             customStyle: style,
             customTitle: title,
-            isInstrumental
+            isInstrumental,
+            // New ElevenLabs parameters
+            durationSeconds,
+            vocalStyle: isInstrumental ? 'auto' : vocalStyle,
+            bpm: bpm,
+            keySignature: keySignature || undefined
         });
-
-        // Reset minimal fields (optional, maybe better to keep for iteration?)
-        // if (!isCustom) setPrompt(''); 
     };
 
     if (isGenerating) {
@@ -58,13 +90,13 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
                     <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
                         <button
                             onClick={() => setIsCustom(false)}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${!isCustom ? 'bg-primary text-white shadow-lg shadow-purple-900/50' : 'text-gray-400 hover:text-white'}`}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${!isCustom ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-gray-400 hover:text-white'}`}
                         >
                             Simple
                         </button>
                         <button
                             onClick={() => setIsCustom(true)}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${isCustom ? 'bg-primary text-white shadow-lg shadow-purple-900/50' : 'text-gray-400 hover:text-white'}`}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${isCustom ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-gray-400 hover:text-white'}`}
                         >
                             Custom
                         </button>
@@ -154,6 +186,96 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
                             />
                         </div>
+
+                        {/* Duration Section */}
+                        <div className="space-y-3">
+                            <label className="text-sm font-bold text-gray-300 flex items-center gap-2">
+                                <Clock size={14} className="text-primary" /> Duration
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {DURATION_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setDurationSeconds(opt.value)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${durationSeconds === opt.value
+                                            ? 'bg-primary/20 border-primary/50 text-primary'
+                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Vocal Style Section (only show when not instrumental) */}
+                        {!isInstrumental && (
+                            <div className="space-y-3">
+                                <label className="text-sm font-bold text-gray-300 flex items-center gap-2">
+                                    <User size={14} className="text-primary" /> Vocal Style
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {VOCAL_STYLES.map(opt => (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => setVocalStyle(opt.value)}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border flex items-center gap-2 ${vocalStyle === opt.value
+                                                ? 'bg-primary/20 border-primary/50 text-primary'
+                                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                }`}
+                                        >
+                                            {opt.icon}
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Advanced: BPM & Key (collapsible) */}
+                        <details className="group">
+                            <summary className="text-sm font-bold text-gray-300 flex items-center gap-2 cursor-pointer list-none">
+                                <Sliders size={14} className="text-primary" />
+                                <span>Advanced Settings</span>
+                                <span className="ml-auto text-gray-500 text-xs">Optional</span>
+                            </summary>
+                            <div className="mt-3 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs text-gray-500 mb-1 block">Tempo (BPM)</label>
+                                        <input
+                                            type="number"
+                                            value={bpm || ''}
+                                            onChange={(e) => setBpm(e.target.value ? parseInt(e.target.value) : undefined)}
+                                            placeholder="e.g. 120"
+                                            min={60}
+                                            max={200}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-500 mb-1 block">Key Signature</label>
+                                        <select
+                                            value={keySignature}
+                                            onChange={(e) => setKeySignature(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-primary/50"
+                                        >
+                                            <option value="">Auto</option>
+                                            <option value="C major">C Major</option>
+                                            <option value="G major">G Major</option>
+                                            <option value="D major">D Major</option>
+                                            <option value="A major">A Major</option>
+                                            <option value="E major">E Major</option>
+                                            <option value="F major">F Major</option>
+                                            <option value="A minor">A Minor</option>
+                                            <option value="E minor">E Minor</option>
+                                            <option value="D minor">D Minor</option>
+                                            <option value="B minor">B Minor</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
                     </div>
                 ) : (
                     // SIMPLE MODE
@@ -194,6 +316,27 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
                                 ))}
                             </div>
                         </div>
+
+                        {/* Duration Section for Simple Mode */}
+                        <div className="space-y-3">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                <Clock size={12} /> Duration
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {DURATION_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setDurationSeconds(opt.value)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${durationSeconds === opt.value
+                                            ? 'bg-primary/20 border-primary/50 text-primary'
+                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -214,7 +357,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
                     className={`w-full py-4 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.01] active:scale-[0.99]
                     ${(!isCustom && !prompt)
                             ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-primary via-purple-600 to-blue-600 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)]'
+                            : 'bg-gradient-to-r from-primary via-red-700 to-black hover:shadow-[0_0_30px_rgba(153,27,27,0.4)]'
                         }
                 `}
                 >

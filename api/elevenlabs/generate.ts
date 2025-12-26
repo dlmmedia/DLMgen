@@ -1,0 +1,142 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+/**
+ * ElevenLabs Music Generation API
+ * 
+ * Uses the /v1/music/compose endpoint for full control over:
+ * - Vocals with lyrics
+ * - Instrumental tracks
+ * - Duration (10-300 seconds)
+ * - Output quality
+ * 
+ * Best practices from ElevenLabs:
+ * - By default, prompts will include lyrics/vocals
+ * - Add "instrumental only" to get pure instrumentals
+ * - Include lyrics with [Verse], [Chorus] markers
+ * - Use vocal descriptors like "female vocals", "male singer"
+ */
+
+interface GenerateRequest {
+    prompt: string;
+    duration_seconds?: number; // 10-300
+    instrumental?: boolean;
+    output_format?: string; // e.g., 'mp3_44100_192'
+    lyrics?: string;
+    style?: string;
+    title?: string;
+}
+
+export default async function handler(
+    request: VercelRequest,
+    response: VercelResponse
+) {
+    if (request.method !== 'POST') {
+        return response.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const {
+        prompt: initialPrompt,
+        duration_seconds = 60,
+        instrumental = false,
+        output_format = 'mp3_44100_128',
+        lyrics,
+        style,
+        title
+    }: GenerateRequest = request.body;
+
+    let prompt = initialPrompt;
+
+    // Construct a rich prompt if custom parameters are provided and it's not a simple prompt
+    if (lyrics || style || title) {
+        const parts = [];
+        if (title) parts.push(`Title: ${title}`);
+        if (style) parts.push(`Style: ${style}`);
+        if (lyrics) parts.push(`Lyrics:\n${lyrics}`);
+
+        // If there's an initial prompt (e.g. from the simple input while also sending extra data), include it too, 
+        // but typically the frontend handles this separation. 
+        // If pure custom mode is used, initialPrompt might be empty or auxiliary.
+        if (initialPrompt && !lyrics) {
+            // If we have explicit lyrics, we prioritize them over a generic prompt description 
+            // but we can append the prompt as "Description: " if needed.
+            parts.push(`Description: ${initialPrompt}`);
+        }
+
+        prompt = parts.join('. ');
+    }
+
+    if (!prompt) {
+        return response.status(400).json({ error: 'Prompt is required' });
+    }
+
+    console.log('Generating with prompt:', prompt);
+
+    // Validate duration (10-300 seconds per ElevenLabs docs)
+    const validDuration = Math.max(10, Math.min(300, duration_seconds));
+    const durationMs = validDuration * 1000;
+
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+
+    if (!apiKey) {
+        console.error('ELEVENLABS_API_KEY is not set');
+        return response.status(500).json({ error: 'Server configuration error' });
+    }
+
+    try {
+        // Use the compose endpoint for full music generation
+        // This endpoint supports vocals, lyrics, and complex compositions
+        const elevenLabsResponse = await fetch('https://api.elevenlabs.io/v1/music/compose', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': apiKey,
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                duration_ms: durationMs,
+                instrumental: instrumental,
+                output_format: output_format
+            }),
+        });
+
+        if (!elevenLabsResponse.ok) {
+            const errorText = await elevenLabsResponse.text();
+            console.error('ElevenLabs API Error:', elevenLabsResponse.status, errorText);
+
+            // Parse error for better messaging
+            try {
+                const errorJson = JSON.parse(errorText);
+                // ElevenLabs returns suggestions for bad prompts
+                if (errorJson.detail?.status === 'bad_prompt' && errorJson.detail?.prompt_suggestion) {
+                    return response.status(400).json({
+                        error: 'Prompt contains restricted content',
+                        suggestion: errorJson.detail.prompt_suggestion
+                    });
+                }
+                return response.status(elevenLabsResponse.status).json({
+                    error: errorJson.detail?.message || errorJson.message || 'ElevenLabs API error',
+                    details: errorJson
+                });
+            } catch {
+                return response.status(elevenLabsResponse.status).json({
+                    error: `ElevenLabs API error: ${errorText}`
+                });
+            }
+        }
+
+        // The compose endpoint returns audio directly
+        const audioBuffer = await elevenLabsResponse.arrayBuffer();
+
+        // Set appropriate headers for audio streaming
+        response.setHeader('Content-Type', 'audio/mpeg');
+        response.setHeader('Content-Length', audioBuffer.byteLength);
+        response.send(Buffer.from(audioBuffer));
+
+    } catch (error) {
+        console.error('Internal Server Error:', error);
+        return response.status(500).json({
+            error: 'Failed to generate music',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+}
