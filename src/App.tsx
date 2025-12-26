@@ -11,6 +11,9 @@ import { saveSong, loadSongs, storedSongToTrack, trackToSaveParams } from './ser
 import { generateElevenLabsTrack } from './services/elevenlabs';
 import { CreateSongParams, Track } from './types';
 import { Menu } from 'lucide-react';
+import { SongCard } from './components/SongCard';
+import { CreatorCard } from './components/CreatorCard';
+import { CREATORS } from './data/tracks';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -19,6 +22,42 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  // Initialize Audio Context and Analyser
+  useEffect(() => {
+    const initAudio = () => {
+      if (!audioRef.current || analyser) return;
+
+      try {
+        const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+        const context = new AudioContextClass();
+        const mainAnalyser = context.createAnalyser();
+        mainAnalyser.fftSize = 256;
+
+        const source = context.createMediaElementSource(audioRef.current);
+        source.connect(mainAnalyser);
+        mainAnalyser.connect(context.destination);
+
+        audioContextRef.current = context;
+        sourceRef.current = source;
+        setAnalyser(mainAnalyser);
+        console.log("Audio Context and Analyser initialized");
+      } catch (err) {
+        console.error("Failed to initialize audio context:", err);
+      }
+    };
+
+    // Initialize on first interaction or when audio starts
+    if (isPlaying) {
+      initAudio();
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+    }
+  }, [isPlaying, analyser]);
 
   // Load songs from Vercel Blob storage
   const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
@@ -197,6 +236,8 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => { setActiveTab(tab); setSidebarOpen(false); }}
         isOpen={sidebarOpen}
+        isPlaying={isPlaying}
+        analyser={analyser}
       />
 
       <main className="flex-1 flex flex-col relative min-w-0 transition-all duration-300">
@@ -210,9 +251,63 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pb-32">
           {activeTab === 'home' && (
-            <div className="p-6 md:p-8">
-<HeroVisualizer isPlaying={isPlaying} audioElement={audioRef.current} />
-              <h2 className="text-2xl font-bold mt-8 mb-4">Trending Now</h2>
+            <div className="p-6 md:p-8 space-y-10">
+              <HeroVisualizer isPlaying={isPlaying} analyser={analyser} />
+
+              <section>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-1">Trending Now</h2>
+                    <p className="text-sm text-white/40">The most popular tracks today</p>
+                  </div>
+                  <button onClick={() => setActiveTab('explore')} className="text-sm font-bold text-primary hover:text-accent transition-colors uppercase tracking-widest">
+                    View All
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                  {TRACKS.slice(0, 5).map(track => (
+                    <SongCard
+                      key={track.id}
+                      track={track}
+                      onPlay={handlePlay}
+                      isCurrent={currentTrack?.id === track.id}
+                      isPlaying={isPlaying}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <section className="lg:col-span-2">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-1">Fresh Finds</h2>
+                      <p className="text-sm text-white/40">New tracks you might like</p>
+                    </div>
+                  </div>
+                  <TrackList
+                    tracks={TRACKS.slice(5, 12)}
+                    currentTrackId={currentTrack?.id}
+                    isPlaying={isPlaying}
+                    onPlay={handlePlay}
+                  />
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-xl font-bold text-white mb-1">Top Creators</h2>
+                      <p className="text-sm text-white/40">AI Artisans to follow</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
+                    {CREATORS.map(creator => (
+                      <CreatorCard key={creator.id} creator={creator} />
+                    ))}
+                  </div>
+                </section>
+              </div>
             </div>
           )}
 
@@ -236,7 +331,7 @@ export default function App() {
         </div>
       </main>
 
-<Player
+      <Player
         currentTrack={currentTrack}
         isPlaying={isPlaying}
         onPlayPause={() => setIsPlaying(!isPlaying)}
