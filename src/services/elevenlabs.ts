@@ -130,28 +130,51 @@ export async function generateElevenLabsTrack(params: CreateSongParams): Promise
         instrumental: params.isInstrumental
     });
 
-    const response = await fetch('/api/elevenlabs/generate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            prompt: prompt,
-            duration_seconds: params.durationSeconds || 60,
-            instrumental: params.isInstrumental,
-            output_format: 'mp3_44100_128'
-        }),
-    });
+    let response: Response;
+    try {
+        response = await fetch('/api/elevenlabs/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                duration_seconds: params.durationSeconds || 60,
+                instrumental: params.isInstrumental,
+                output_format: 'mp3_44100_128'
+            }),
+        });
+    } catch (fetchError) {
+        // Handle network errors (connection refused, etc.)
+        if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
+            throw new Error('Cannot connect to the API server. Make sure you are running the dev server with "npm run dev" or "npx vercel dev".');
+        }
+        throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
+    }
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Handle specific error codes
+        if (response.status === 401 || errorData.code === 'INVALID_API_KEY') {
+            const hint = typeof errorData.hint === 'string' ? `\n\n${errorData.hint}` : '';
+            throw new Error(`Invalid API key. Please check your ELEVENLABS_API_KEY environment variable.${hint}`);
+        }
+        
+        if (errorData.code === 'MISSING_API_KEY') {
+            throw new Error('Server configuration error: ELEVENLABS_API_KEY is not set.');
+        }
+        
+        if (errorData.code === 'CONNECTION_ERROR') {
+            throw new Error('Failed to connect to ElevenLabs API. Please check your internet connection and API key.');
+        }
         
         // Handle prompt suggestions from ElevenLabs
         if (errorData.suggestion) {
             throw new Error(`${errorData.error}. Suggested prompt: ${errorData.suggestion}`);
         }
         
-        throw new Error(errorData.error || 'Failed to generate music via ElevenLabs');
+        throw new Error(errorData.error || `Failed to generate music via ElevenLabs (Status: ${response.status})`);
     }
 
     return await response.blob();

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Mic, Music, Sparkles, Wand2, Disc, Layers, Clock, User, Users, Sliders } from 'lucide-react';
 import { CreateSongParams, VocalStyle } from '../types';
 import { GenerationLoader } from './GenerationLoader';
+import { LyricsGeneratorPanel } from './LyricsGeneratorPanel';
+import { ParsedLyricsMetadata, generateStructuredLyrics, parseLyricsMetadata } from '../services/lyricsSystem';
 
 interface CreateFormProps {
     onSubmit: (params: CreateSongParams) => void;
@@ -42,11 +44,57 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
     const [vocalStyle, setVocalStyle] = useState<VocalStyle>('auto');
     const [bpm, setBpm] = useState<number | undefined>(undefined);
     const [keySignature, setKeySignature] = useState<string>('');
+    const [isRandomizingLyrics, setIsRandomizingLyrics] = useState(false);
+    const [randomError, setRandomError] = useState<string | null>(null);
 
     const inspirationTags = [
         "Cyberpunk Action", "Lo-Fi Study", "Epic Orchestral",
         "Dark Techno", "Acoustic Ballad", "Synthwave Drive"
     ];
+
+    const randomConcepts = [
+        "Stardust postcards from a future city",
+        "Midnight drive on a rainlit coast",
+        "Code-sent love in a neon arcade",
+        "Quiet confessions over shortwave radio",
+        "Aurora over a cyberpunk harbor",
+        "Paper planes and analog skies",
+        "Heartbeat synced to city lights",
+        "Ghost signals in a satellite garden"
+    ];
+
+    const handleLyricsApply = (generated: string, meta?: ParsedLyricsMetadata) => {
+        setLyrics(generated);
+        setIsInstrumental(false);
+        if (meta?.title && !title) setTitle(meta.title);
+        if (meta?.style && !style) setStyle(meta.style);
+        if (meta?.bpm && !Number.isNaN(meta.bpm)) setBpm(meta.bpm);
+    };
+
+    const handleRandomLyrics = async () => {
+        if (isRandomizingLyrics) return;
+        setRandomError(null);
+        setIsRandomizingLyrics(true);
+
+        const concept = (prompt || title || style || randomConcepts[Math.floor(Math.random() * randomConcepts.length)]).trim();
+
+        try {
+            const generated = await generateStructuredLyrics({
+                concept,
+                genre: style || 'Pop',
+                style: style || 'Modern pop',
+                mood: 'Hopeful',
+                language: 'English',
+            });
+            const meta = parseLyricsMetadata(generated);
+            handleLyricsApply(generated, meta);
+        } catch (err) {
+            console.error('Random lyrics generation failed:', err);
+            setRandomError(err instanceof Error ? err.message : 'Failed to generate lyrics. Check your Gemini API key.');
+        } finally {
+            setIsRandomizingLyrics(false);
+        }
+    };
 
     const handleSubmit = () => {
         if ((!isCustom && !prompt) || (isCustom && !lyrics && !isInstrumental && !style)) return;
@@ -126,20 +174,36 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
                             </div>
 
                             {!isInstrumental ? (
-                                <div className="relative group">
-                                    <textarea
-                                        value={lyrics}
-                                        onChange={(e) => setLyrics(e.target.value)}
-                                        placeholder="Enter your own lyrics..."
-                                        className="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none font-mono leading-relaxed"
-                                    />
-                                    <button
-                                        className="absolute bottom-4 right-4 text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all opacity-0 group-hover:opacity-100"
-                                        onClick={() => setLyrics("[Verse 1]\nNeon lights in the rain\nWalking down the memory lane\n\n[Chorus]\nDigital dreams, silent screams\nNothing is ever what it seems")}
-                                    >
-                                        <Sparkles size={12} className="text-primary" /> Make it Random
-                                    </button>
-                                </div>
+                                <>
+                                    <div className="relative group">
+                                        <textarea
+                                            value={lyrics}
+                                            onChange={(e) => setLyrics(e.target.value)}
+                                            placeholder="Enter your own lyrics..."
+                                            className="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none font-mono leading-relaxed"
+                                        />
+                                        <button
+                                            className={`absolute bottom-4 right-4 text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${isRandomizingLyrics ? '' : 'opacity-0 group-hover:opacity-100'}`}
+                                            onClick={handleRandomLyrics}
+                                            disabled={isRandomizingLyrics}
+                                        >
+                                            {isRandomizingLyrics ? (
+                                                <>
+                                                    <Sparkles size={12} className="text-primary animate-spin" /> Generating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Sparkles size={12} className="text-primary" /> Make it Random
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                    {randomError && (
+                                        <div className="mt-2 text-xs text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
+                                            {randomError}
+                                        </div>
+                                    )}
+                                </>
                             ) : (
                                 <div className="w-full h-48 bg-black/20 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center text-gray-500 gap-2">
                                     <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
@@ -149,6 +213,12 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating }
                                 </div>
                             )}
                         </div>
+
+                        <LyricsGeneratorPanel
+                            onApply={handleLyricsApply}
+                            disabled={isInstrumental}
+                            defaultStyle={style}
+                        />
 
                         {/* Style Section */}
                         <div className="space-y-3">

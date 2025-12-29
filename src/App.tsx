@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Player } from './components/Player';
 import { HeroVisualizer } from './components/HeroVisualizer';
@@ -26,16 +26,18 @@ export default function App() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
-  // Initialize Audio Context and Analyser
-  useEffect(() => {
-    const initAudio = () => {
-      if (!audioRef.current || analyser) return;
+  const ensureAudioGraph = useCallback(async () => {
+    if (!audioRef.current) return;
 
-      try {
-        const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
-        const context = new AudioContextClass();
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioContextRef.current) {
+        const context: AudioContext = new AudioContextClass();
         const mainAnalyser = context.createAnalyser();
-        mainAnalyser.fftSize = 256;
+        mainAnalyser.fftSize = 1024;
+        mainAnalyser.smoothingTimeConstant = 0.85;
 
         const source = context.createMediaElementSource(audioRef.current);
         source.connect(mainAnalyser);
@@ -44,20 +46,54 @@ export default function App() {
         audioContextRef.current = context;
         sourceRef.current = source;
         setAnalyser(mainAnalyser);
-        console.log("Audio Context and Analyser initialized");
-      } catch (err) {
-        console.error("Failed to initialize audio context:", err);
       }
-    };
 
-    // Initialize on first interaction or when audio starts
-    if (isPlaying) {
-      initAudio();
-      if (audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume();
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
       }
+    } catch (err) {
+      console.error("Failed to initialize/resume audio context:", err);
     }
-  }, [isPlaying, analyser]);
+  }, []);
+
+  const playUrlNow = useCallback((url: string) => {
+    const audioEl = audioRef.current;
+    if (!audioEl) return;
+
+    // Important: don't `await` here; keep `play()` on the user-gesture call stack
+    // to avoid autoplay restrictions (esp. Safari/iOS).
+    void ensureAudioGraph();
+
+    try {
+      // Force the media element to have the right source *within the user gesture*
+      // so `play()` isn't blocked and the analyser receives data immediately.
+      if (audioEl.getAttribute('src') !== url) {
+        audioEl.setAttribute('src', url);
+        audioEl.load();
+      }
+      void audioEl.play();
+    } catch (e) {
+      console.warn('Audio play failed:', e);
+    }
+  }, [ensureAudioGraph]);
+
+  const pauseNow = useCallback(() => {
+    const audioEl = audioRef.current;
+    if (!audioEl) return;
+    try {
+      audioEl.pause();
+    } catch (e) {
+      console.warn('Audio pause failed:', e);
+    }
+  }, []);
+
+  // If the graph already exists, keep it resumed while playing (covers tab focus / OS suspend).
+  useEffect(() => {
+    if (!isPlaying) return;
+    audioContextRef.current?.resume().catch(() => {
+      // Ignore: some browsers require a user gesture; ensureAudioGraph handles that on interaction.
+    });
+  }, [isPlaying]);
 
   // Load songs from Vercel Blob storage
   const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
@@ -117,9 +153,16 @@ export default function App() {
 
   const handlePlay = (track: Track) => {
     if (currentTrack?.id === track.id) {
-      setIsPlaying(!isPlaying);
+      if (isPlaying) {
+        pauseNow();
+        setIsPlaying(false);
+      } else {
+        void playUrlNow(track.url);
+        setIsPlaying(true);
+      }
     } else {
       setCurrentTrack(track);
+      void playUrlNow(track.url);
       setIsPlaying(true);
     }
   };
@@ -128,7 +171,9 @@ export default function App() {
     if (!currentTrack) return;
     const currentIndex = TRACKS.findIndex(t => t.id === currentTrack.id);
     const nextIndex = (currentIndex + 1) % TRACKS.length;
-    setCurrentTrack(TRACKS[nextIndex]);
+    const next = TRACKS[nextIndex];
+    setCurrentTrack(next);
+    void playUrlNow(next.url);
     setIsPlaying(true);
   };
 
@@ -136,13 +181,19 @@ export default function App() {
     if (!currentTrack) return;
     const currentIndex = TRACKS.findIndex(t => t.id === currentTrack.id);
     const prevIndex = (currentIndex - 1 + TRACKS.length) % TRACKS.length;
-    setCurrentTrack(TRACKS[prevIndex]);
+    const prev = TRACKS[prevIndex];
+    setCurrentTrack(prev);
+    void playUrlNow(prev.url);
     setIsPlaying(true);
   };
 
   const handleCreateSubmit = async (params: CreateSongParams) => {
     setIsGenerating(true);
     try {
+      // Ensure the analyser exists during the user gesture that starts generation,
+      // so auto-play can reliably drive visualizers when generation completes.
+      await ensureAudioGraph();
+
       // 1. Generate Metadata
       const metadata = await generateSongMetadata(
         params.prompt,
@@ -224,7 +275,31 @@ export default function App() {
 
     } catch (error) {
       console.error("Generation failed", error);
-      alert("Failed to create song. Please try again.");
+      
+      // Provide more helpful error messages
+      let errorMessage = "Failed to create song. Please try again.";
+      
+      if (error instanceof Error) {
+        // Check if it's a connection error
+        if (error.message.includes("Cannot connect to the API server") || 
+            error.message.includes("connection refused") ||
+            error.message.includes("ERR_CONNECTION_REFUSED") ||
+            error.message.includes("Failed to fetch")) {
+          errorMessage = "Cannot connect to the API server. Make sure:\n\n1. The dev server is running (npm run dev or npx vercel dev)\n2. You have ELEVENLABS_API_KEY in your .env.local file\n3. The server is accessible at http://localhost:3000";
+        } 
+        // Check if it's an API key error
+        else if (error.message.includes("Invalid API key") || error.message.includes("401")) {
+          errorMessage = error.message || "Invalid API key error. Please check your ELEVENLABS_API_KEY environment variable. See README for setup instructions.";
+        } 
+        else if (error.message.includes("Server configuration error") || error.message.includes("MISSING_API_KEY")) {
+          errorMessage = "Server configuration error: ELEVENLABS_API_KEY is not set. Please add it to your .env.local file or Vercel environment variables.";
+        } 
+        else {
+          errorMessage = error.message || errorMessage;
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -252,7 +327,11 @@ export default function App() {
         <div className="flex-1 overflow-y-auto custom-scrollbar pb-32">
           {activeTab === 'home' && (
             <div className="p-6 md:p-8 space-y-10">
-              <HeroVisualizer isPlaying={isPlaying} analyser={analyser} />
+              <HeroVisualizer
+                isPlaying={isPlaying}
+                analyser={analyser}
+                trackTitle={currentTrack?.title}
+              />
 
               <section>
                 <div className="flex items-center justify-between mb-6">
@@ -334,7 +413,16 @@ export default function App() {
       <Player
         currentTrack={currentTrack}
         isPlaying={isPlaying}
-        onPlayPause={() => setIsPlaying(!isPlaying)}
+        onPlayPause={() => {
+          if (!currentTrack) return;
+          if (isPlaying) {
+            pauseNow();
+            setIsPlaying(false);
+          } else {
+            void playUrlNow(currentTrack.url);
+            setIsPlaying(true);
+          }
+        }}
         onNext={handleNext}
         onPrev={handlePrev}
         onEnded={handleNext}

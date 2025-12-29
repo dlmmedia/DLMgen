@@ -19,14 +19,13 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.play().catch(e => console.error("Playback failed", e));
-      } else {
-        audioRef.current.pause();
-      }
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.play().catch(e => console.error("Playback failed", e));
+    } else {
+      audioRef.current.pause();
     }
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying]);
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
@@ -54,7 +53,6 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
     <div className="fixed bottom-0 left-0 right-0 h-24 bg-black/80 backdrop-blur-xl border-t border-white/10 px-4 md:px-8 flex items-center justify-between z-50">
       <audio
         ref={audioRef}
-        src={currentTrack?.url}
         onTimeUpdate={handleTimeUpdate}
         onEnded={onEnded} // Auto-play next
       />
