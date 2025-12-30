@@ -6,7 +6,6 @@ import { TrackList } from './components/TrackList';
 import { TRACKS } from './data/tracks';
 import { CreateStudio } from './components/CreateStudio';
 import { generateSongMetadata, generateAlbumArt } from './services/gemini';
-import { selectTrackForMetadata } from './utils/mockGenerator';
 import { 
   saveSong, 
   loadSongs, 
@@ -281,22 +280,20 @@ export default function App() {
       setGenerationStep(1);
       let audioUrl = "";
 
-      if (params.isCustom) {
-        // Step 3: Generating vocals (or instrumental)
-        setGenerationStep(2);
-        const blob = await generateElevenLabsTrack(params);
-        audioUrl = URL.createObjectURL(blob);
-      } else {
-        // Mock selection for Simple Mode
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        setGenerationStep(2);
-        const selectedTrack = selectTrackForMetadata(
-          metadata,
-          TRACKS,
-          generatedTracks.map(t => t.id)
-        );
-        audioUrl = selectedTrack.url;
-      }
+      // Step 3: Generating vocals (or instrumental) via ElevenLabs
+      setGenerationStep(2);
+      
+      // Build params for ElevenLabs - use Gemini-generated content for Simple mode
+      const elevenLabsParams: CreateSongParams = {
+        ...params,
+        // For Simple mode, use Gemini-generated lyrics/style/title
+        customLyrics: params.customLyrics || metadata.lyrics,
+        customStyle: params.customStyle || metadata.styleTags?.join(', '),
+        customTitle: params.customTitle || metadata.title,
+      };
+      
+      const blob = await generateElevenLabsTrack(elevenLabsParams);
+      audioUrl = URL.createObjectURL(blob);
 
       // Step 4: Mastering audio / generating album art
       setGenerationStep(3);

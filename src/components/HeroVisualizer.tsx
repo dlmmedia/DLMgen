@@ -46,7 +46,7 @@ interface SceneState {
     haloSystem: THREE.Points | null;
     warpTrails: THREE.LineSegments | null;
     trailVelocities: Float32Array | null;
-    aurora: THREE.Mesh | null;
+    aurora: THREE.Points | null;
     starSystem: THREE.Points;
     nebulaSystem: THREE.Points;
     animationId: number;
@@ -143,31 +143,92 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
 
         const createStarTexture = () => {
             const canvas = document.createElement('canvas');
-            canvas.width = 32;
-            canvas.height = 32;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return new THREE.Texture();
-            const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-            grad.addColorStop(0, 'rgba(255,255,255,1)');
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 32, 32);
-            return new THREE.CanvasTexture(canvas);
-        };
-
-        const createNebulaTexture = () => {
-            const canvas = document.createElement('canvas');
             canvas.width = 64;
             canvas.height = 64;
             const ctx = canvas.getContext('2d');
             if (!ctx) return new THREE.Texture();
+            
+            // Clear with transparent background
+            ctx.clearRect(0, 0, 64, 64);
+            
+            // Draw soft circular glow with proper falloff
             const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
             grad.addColorStop(0, 'rgba(255,255,255,1)');
-            grad.addColorStop(0.6, 'rgba(200,200,255,0.4)');
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            grad.addColorStop(0.1, 'rgba(255,255,255,0.9)');
+            grad.addColorStop(0.4, 'rgba(255,255,255,0.3)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            
             ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 64, 64);
-            return new THREE.CanvasTexture(canvas);
+            ctx.beginPath();
+            ctx.arc(32, 32, 32, 0, Math.PI * 2);
+            ctx.fill();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        };
+
+        const createNebulaTexture = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return new THREE.Texture();
+            
+            // Clear with transparent background
+            ctx.clearRect(0, 0, 128, 128);
+            
+            // Draw soft organic nebula cloud
+            const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            grad.addColorStop(0, 'rgba(255,255,255,0.8)');
+            grad.addColorStop(0.2, 'rgba(255,200,200,0.5)');
+            grad.addColorStop(0.5, 'rgba(200,150,200,0.25)');
+            grad.addColorStop(0.8, 'rgba(150,100,150,0.1)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(64, 64, 64, 0, Math.PI * 2);
+            ctx.fill();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        };
+        
+        // Create organic cloud texture for aurora replacement
+        const createCloudTexture = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return new THREE.Texture();
+            
+            ctx.clearRect(0, 0, 256, 256);
+            
+            // Create multiple overlapping soft circles for organic look
+            const drawSoftCircle = (x: number, y: number, r: number, alpha: number) => {
+                const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+                grad.addColorStop(0, `rgba(255,100,100,${alpha})`);
+                grad.addColorStop(0.3, `rgba(255,80,120,${alpha * 0.6})`);
+                grad.addColorStop(0.6, `rgba(200,50,100,${alpha * 0.3})`);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            };
+            
+            // Scatter organic blobs
+            drawSoftCircle(128, 128, 120, 0.4);
+            drawSoftCircle(90, 100, 80, 0.3);
+            drawSoftCircle(170, 140, 90, 0.35);
+            drawSoftCircle(100, 160, 70, 0.25);
+            drawSoftCircle(160, 90, 75, 0.28);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
         };
 
         const scene = new THREE.Scene();
@@ -352,17 +413,53 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
         }));
         scene.add(warpTrails);
 
-        const auroraGeo = new THREE.PlaneGeometry(420, 260, 50, 20);
-        const aurora = new THREE.Mesh(auroraGeo, new THREE.MeshBasicMaterial({
-            color: 0xe11d48,
+        // Create organic nebula cloud system instead of rectangular aurora
+        const cloudCount = 35;
+        const cloudGeo = new THREE.BufferGeometry();
+        const cloudPositions = new Float32Array(cloudCount * 3);
+        const cloudColors = new Float32Array(cloudCount * 3);
+        const cloudSizes = new Float32Array(cloudCount);
+        const cloudOpacities = new Float32Array(cloudCount);
+        
+        for (let i = 0; i < cloudCount; i++) {
+            const i3 = i * 3;
+            // Distribute in a spherical shell behind the focal point
+            const theta = Math.random() * Math.PI * 2;
+            const phi = (Math.random() - 0.5) * Math.PI * 0.6;
+            const radius = 150 + Math.random() * 120;
+            
+            cloudPositions[i3] = Math.cos(theta) * Math.cos(phi) * radius * 1.5;
+            cloudPositions[i3 + 1] = Math.sin(phi) * radius * 0.6 + 20;
+            cloudPositions[i3 + 2] = -Math.sin(theta) * Math.cos(phi) * radius - 80;
+            
+            cloudSizes[i] = 80 + Math.random() * 160;
+            cloudOpacities[i] = 0.08 + Math.random() * 0.12;
+            
+            // Warm cosmic colors
+            const colorChoice = Math.random();
+            if (colorChoice < 0.4) {
+                cloudColors[i3] = 0.9; cloudColors[i3 + 1] = 0.25; cloudColors[i3 + 2] = 0.35;
+            } else if (colorChoice < 0.7) {
+                cloudColors[i3] = 0.85; cloudColors[i3 + 1] = 0.35; cloudColors[i3 + 2] = 0.5;
+            } else {
+                cloudColors[i3] = 1.0; cloudColors[i3 + 1] = 0.45; cloudColors[i3 + 2] = 0.3;
+            }
+        }
+        
+        cloudGeo.setAttribute('position', new THREE.BufferAttribute(cloudPositions, 3));
+        cloudGeo.setAttribute('color', new THREE.BufferAttribute(cloudColors, 3));
+        cloudGeo.setAttribute('size', new THREE.BufferAttribute(cloudSizes, 1));
+        
+        const aurora = new THREE.Points(cloudGeo, new THREE.PointsMaterial({
+            size: 120,
+            vertexColors: true,
+            map: createCloudTexture(),
             transparent: true,
-            opacity: 0.12,
+            opacity: 0.18,
             blending: THREE.AdditiveBlending,
-            side: THREE.DoubleSide,
-            depthWrite: false
+            depthWrite: false,
+            sizeAttenuation: true
         }));
-        aurora.position.set(0, 10, -210);
-        aurora.rotation.x = -Math.PI / 2.8;
         scene.add(aurora);
 
         sceneRef.current = {
@@ -469,6 +566,14 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
         clock.start();
         let smoothBass = 0, smoothMid = 0, smoothHigh = 0;
         let lastTime = performance.now();
+        
+        // Cinematic camera orbit state
+        let cameraOrbitAngle = 0;
+        let cameraOrbitRadius = 110;
+        let targetOrbitRadius = 110;
+        let cameraHeight = 0;
+        let targetHeight = 0;
+        let cameraRoll = 0;
 
         // Do an initial render immediately so something is visible
         renderer.render(scene, camera);
@@ -552,14 +657,19 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                     high = 0.35 + Math.sin(time * 2.8) * 0.18;
                 }
 
-                // Faster smoothing for more responsive animation
-                smoothBass += (bass - smoothBass) * 0.3;
-                smoothMid += (mid - smoothMid) * 0.3;
-                smoothHigh += (high - smoothHigh) * 0.3;
+                // Asymmetric smoothing: fast attack, slow decay for punchy response
+                const bassAttack = bass > smoothBass ? 0.4 : 0.08;
+                const midSmooth = mid > smoothMid ? 0.25 : 0.12;
+                const highSmooth = high > smoothHigh ? 0.3 : 0.15;
+                
+                smoothBass += (bass - smoothBass) * bassAttack;
+                smoothMid += (mid - smoothMid) * midSmooth;
+                smoothHigh += (high - smoothHigh) * highSmooth;
 
                 uniforms.bass.value = smoothBass;
 
-                const warpSpeed = 120 + smoothBass * 600; // Increased base speed for more visible movement
+                // Smoother warp speed: gentle base with music-reactive bursts
+                const warpSpeed = 45 + smoothBass * 200 + smoothMid * 80;
                 const starPositions = currentStarSystem.geometry.attributes.position.array as Float32Array;
 
                 for (let i = 0; i < starPositions.length; i += 3) {
@@ -582,45 +692,80 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                     const trailArr = currentWarpTrails.geometry.attributes.position.array as Float32Array;
                     for (let i = 0; i < currentTrailVelocities.length; i++) {
                         const i6 = i * 6;
-                        const velocity = (currentTrailVelocities[i] + smoothBass * 500) * delta;
+                        // Smoother velocity with music reactivity
+                        const baseVelocity = currentTrailVelocities[i] * 0.4;
+                        const musicBoost = smoothBass * 180 + smoothMid * 60;
+                        const velocity = (baseVelocity + musicBoost) * delta;
                         trailArr[i6 + 2] += velocity;
                         trailArr[i6 + 5] += velocity;
+                        
+                        // Dynamic trail length based on speed
+                        const dynamicLen = 12 + smoothBass * 20;
+                        trailArr[i6 + 5] = trailArr[i6 + 2] + dynamicLen;
+                        
                         if (trailArr[i6 + 2] > 200) {
                             const r = 30 + Math.random() * 260;
                             const theta = Math.random() * Math.PI * 2;
                             const z = -900;
-                            const len = 10 + Math.random() * 24;
                             trailArr[i6] = Math.cos(theta) * r;
                             trailArr[i6 + 1] = Math.sin(theta) * r;
                             trailArr[i6 + 2] = z;
                             trailArr[i6 + 3] = trailArr[i6];
                             trailArr[i6 + 4] = trailArr[i6 + 1];
-                            trailArr[i6 + 5] = z + len;
+                            trailArr[i6 + 5] = z + dynamicLen;
                         }
                     }
                     currentWarpTrails.geometry.attributes.position.needsUpdate = true;
                     const mat = currentWarpTrails.material as THREE.LineBasicMaterial;
-                    mat.opacity = 0.28 + smoothBass * 0.4;
+                    mat.opacity = 0.2 + smoothBass * 0.35;
                 }
 
-                currentNebulaSystem.rotation.z += 0.04 * delta;
+                // Enhanced nebula interaction with music
+                // Multi-axis rotation for organic drift
+                currentNebulaSystem.rotation.z += (0.02 + smoothMid * 0.04) * delta;
+                currentNebulaSystem.rotation.x += (0.008 + smoothBass * 0.015) * delta;
+                currentNebulaSystem.rotation.y += 0.005 * delta;
+                
                 const nebulaMat = currentNebulaSystem.material as THREE.PointsMaterial;
-                nebulaMat.opacity = 0.22 + smoothMid * 0.35;
-                nebulaMat.color.setHSL(0.02 + smoothMid * 0.08, 0.78, 0.55);
+                // Opacity breathing with bass
+                nebulaMat.opacity = 0.18 + smoothMid * 0.28 + smoothBass * 0.15;
+                
+                // Size pulsing on bass hits
+                nebulaMat.size = 65 + smoothBass * 35 + smoothMid * 20;
+                
+                // Color breathing based on frequency - shifts through warm cosmic hues
+                const hue = 0.01 + smoothHigh * 0.06 + Math.sin(time * 0.3) * 0.02;
+                const saturation = 0.7 + smoothMid * 0.2;
+                const lightness = 0.45 + smoothBass * 0.15;
+                nebulaMat.color.setHSL(hue, saturation, lightness);
+                
+                // Subtle position drift based on mid frequencies
+                const nebulaPositions = currentNebulaSystem.geometry.attributes.position.array as Float32Array;
+                for (let i = 0; i < nebulaPositions.length; i += 3) {
+                    nebulaPositions[i] += Math.sin(time * 0.5 + i) * smoothMid * 0.15 * delta * 60;
+                    nebulaPositions[i + 1] += Math.cos(time * 0.4 + i * 0.5) * smoothMid * 0.1 * delta * 60;
+                }
+                currentNebulaSystem.geometry.attributes.position.needsUpdate = true;
 
                 if (currentHaloSystem) {
-                    currentHaloSystem.rotation.z += 0.15 * delta;
+                    // Dynamic rotation speed based on music energy
+                    const haloRotSpeed = 0.08 + smoothBass * 0.15 + smoothHigh * 0.1;
+                    currentHaloSystem.rotation.z += haloRotSpeed * delta;
+                    currentHaloSystem.rotation.y += 0.02 * delta;
+                    
                     const haloMat = currentHaloSystem.material as THREE.PointsMaterial;
-                    haloMat.size = 0.7 + smoothHigh * 1.4;
-                    haloMat.opacity = 0.35 + smoothMid * 0.25;
+                    // Pulsing size with high frequencies
+                    haloMat.size = 0.6 + smoothHigh * 1.8 + smoothBass * 0.8;
+                    haloMat.opacity = 0.3 + smoothMid * 0.3 + smoothHigh * 0.15;
                 }
 
                 if (currentAurora) {
-                    currentAurora.rotation.z += 0.05 * delta;
-                    currentAurora.scale.setScalar(1 + smoothMid * 0.3);
-                    const auroraMat = currentAurora.material as THREE.MeshBasicMaterial;
-                    auroraMat.opacity = 0.08 + smoothMid * 0.35;
-                    auroraMat.color.setHSL(0.015 + smoothHigh * 0.05, 0.9, 0.55);
+                    // Gentle rotation and pulsing for organic nebula clouds
+                    currentAurora.rotation.z += 0.02 * delta;
+                    currentAurora.rotation.y += 0.008 * delta;
+                    const auroraMat = currentAurora.material as THREE.PointsMaterial;
+                    auroraMat.opacity = 0.12 + smoothMid * 0.2;
+                    auroraMat.size = 100 + smoothBass * 60;
                 }
 
                 if (currentTextMesh) {
@@ -632,11 +777,34 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                     mat.color.setHSL(0.02 + smoothHigh * 0.12, 0.8, 0.72);
                 }
 
-                // More dynamic camera movement
-                currentCamera.position.x = Math.sin(time * 0.5) * (8 + smoothMid * 10);
-                currentCamera.position.y = Math.cos(time * 0.4) * (6 + smoothBass * 6);
-                currentCamera.position.z = 110 - smoothBass * 18;
-                currentCamera.lookAt(0, 0, 40 + smoothBass * 25);
+                // Cinematic orbital camera with music-reactive dolly and roll
+                // Slow orbit with music-reactive speed boost
+                const orbitSpeed = 0.06 + smoothMid * 0.1 + smoothBass * 0.08;
+                cameraOrbitAngle += delta * orbitSpeed;
+                
+                // Dynamic radius: pull in on bass hits for dramatic effect
+                targetOrbitRadius = 115 - smoothBass * 30;
+                cameraOrbitRadius += (targetOrbitRadius - cameraOrbitRadius) * 0.05;
+                
+                // Vertical wave with high-frequency lift
+                targetHeight = Math.sin(time * 0.25) * 12 + smoothHigh * 10;
+                cameraHeight += (targetHeight - cameraHeight) * 0.04;
+                
+                // Subtle roll for cinematic feel
+                cameraRoll = Math.sin(time * 0.15) * 0.04 + smoothBass * 0.02;
+                
+                // Apply orbital position
+                currentCamera.position.x = Math.sin(cameraOrbitAngle) * cameraOrbitRadius * 0.25;
+                currentCamera.position.z = Math.cos(cameraOrbitAngle) * cameraOrbitRadius;
+                currentCamera.position.y = cameraHeight;
+                
+                // Look at dynamic focal point with bass-reactive lift
+                const lookAtY = smoothBass * 8 - 2;
+                const lookAtZ = 30 + smoothMid * 20;
+                currentCamera.lookAt(0, lookAtY, lookAtZ);
+                
+                // Apply roll after lookAt
+                currentCamera.rotation.z += cameraRoll;
 
                 currentRenderer.render(currentScene, currentCamera);
             } catch (e) {
