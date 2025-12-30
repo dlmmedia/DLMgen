@@ -98,10 +98,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="px-6 pt-6 pb-0">
-        <h1 className="text-3xl font-bold text-white mb-6">Library</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Library</h1>
         
         {/* Tab Navigation */}
-        <div className="flex items-center gap-1 border-b border-white/10">
+        <div className="flex items-center gap-1 border-b border-gray-200 dark:border-white/10">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -114,8 +114,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all
                 border-b-2 -mb-px
                 ${activeTab === tab.id
-                  ? 'text-white border-primary'
-                  : 'text-gray-400 border-transparent hover:text-white hover:border-white/20'
+                  ? 'text-gray-900 dark:text-white border-primary'
+                  : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/20'
                 }
               `}
             >
@@ -227,4 +227,3 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     </div>
   );
 };
-

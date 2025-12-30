@@ -713,12 +713,12 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
     const displayTitle = (trackTitle && trackTitle.trim()) ? trackTitle.trim() : 'DLM Gen';
 
     return (
-        <div className="relative w-full h-[300px] md:h-[400px] overflow-hidden rounded-xl border border-white/10 bg-black shadow-2xl shadow-red-900/25">
+        <div className="relative w-full h-[300px] md:h-[400px] overflow-hidden rounded-xl border border-gray-200 dark:border-white/10 bg-gray-900 dark:bg-black shadow-2xl shadow-red-900/25">
             {/* Direct Container for Three.js */}
             <div ref={containerRef} className="absolute inset-0 z-0" />
 
             {/* Overlay Gradient for integration */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none z-10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 dark:from-black/80 via-transparent to-transparent pointer-events-none z-10" />
 
             <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-6">
                 <div className="flex items-start justify-between gap-4">

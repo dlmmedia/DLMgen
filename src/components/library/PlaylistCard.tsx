@@ -28,7 +28,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
 
   return (
     <div
-      className="group relative bg-white/[0.02] border border-white/5 rounded-xl p-3 hover:bg-white/[0.05] hover:border-white/10 transition-all cursor-pointer"
+      className="group relative bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-xl p-3 hover:bg-gray-200 dark:hover:bg-white/[0.05] hover:border-gray-300 dark:hover:border-white/10 transition-all cursor-pointer"
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -54,7 +54,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Music2 size={32} className="text-white/30" />
+            <Music2 size={32} className="text-gray-400 dark:text-white/30" />
           </div>
         )}
 
@@ -72,7 +72,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
       </div>
 
       {/* Info */}
-      <h3 className="font-semibold text-sm text-white truncate mb-1">
+      <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate mb-1">
         {playlist.name}
       </h3>
       <p className="text-xs text-gray-500">
@@ -83,7 +83,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
       <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className={`p-1.5 rounded-lg bg-black/60 backdrop-blur-sm text-white transition-opacity ${
+          className={`p-1.5 rounded-lg bg-gray-900/60 dark:bg-black/60 backdrop-blur-sm text-white transition-opacity ${
             isHovered || showMenu ? 'opacity-100' : 'opacity-0'
           }`}
         >
@@ -93,14 +93,14 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
         {showMenu && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-            <div className="absolute right-0 mt-1 w-36 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50">
+            <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg shadow-2xl overflow-hidden z-50">
               {onEdit && (
                 <button
                   onClick={() => {
                     onEdit();
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                 >
                   <Pencil size={14} />
                   <span>Edit</span>
@@ -112,7 +112,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
                     onDelete();
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 transition-colors"
                 >
                   <Trash2 size={14} />
                   <span>Delete</span>
@@ -125,4 +125,3 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
     </div>
   );
 };
-

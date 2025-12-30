@@ -83,12 +83,12 @@ export const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({
         ${
           isSelected
             ? 'bg-primary/10 border border-primary/30'
-            : 'bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+            : 'bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 hover:bg-gray-200 dark:hover:bg-white/[0.05] hover:border-gray-300 dark:hover:border-white/10'
         }
       `}
     >
       {/* Cover Art */}
-      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-white/5">
         {track.coverUrl ? (
           <img
             src={track.coverUrl}
@@ -97,7 +97,7 @@ export const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Music size={20} className="text-white/30" />
+            <Music size={20} className="text-gray-400 dark:text-white/30" />
           </div>
         )}
 
@@ -129,20 +129,20 @@ export const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({
       <div className="flex-1 min-w-0">
         <h4
           className={`font-semibold text-sm truncate ${
-            isSelected || isCurrent ? 'text-primary' : 'text-white'
+            isSelected || isCurrent ? 'text-primary' : 'text-gray-900 dark:text-white'
           }`}
         >
           {track.title}
         </h4>
         <p className="text-xs text-gray-500 truncate">{track.artist}</p>
-        <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-600">
+        <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-500 dark:text-gray-600">
           <span className="flex items-center gap-1">
             <Clock size={9} />
             {formatDuration(track.duration)}
           </span>
-          <span className="px-1.5 py-0.5 bg-white/5 rounded text-gray-500">{track.genre}</span>
+          <span className="px-1.5 py-0.5 bg-gray-200 dark:bg-white/5 rounded text-gray-600 dark:text-gray-500">{track.genre}</span>
           {track.isInstrumental && (
-            <span className="px-1.5 py-0.5 bg-green-500/10 rounded text-green-500">
+            <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-500/10 rounded text-green-700 dark:text-green-500">
               Instrumental
             </span>
           )}
@@ -151,7 +151,7 @@ export const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({
 
       {/* Date & Actions */}
       <div className="flex flex-col items-end gap-2">
-        <div className="flex items-center gap-1 text-[10px] text-gray-600">
+        <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-600">
           <Calendar size={10} />
           {formatDate(track.createdAt)}
         </div>
@@ -160,7 +160,7 @@ export const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({
         <div className="relative">
           <button
             onClick={handleMenuClick}
-            className="p-1 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+            className="p-1 rounded-lg hover:bg-gray-300 dark:hover:bg-white/10 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all opacity-0 group-hover:opacity-100"
           >
             <MoreVertical size={14} />
           </button>

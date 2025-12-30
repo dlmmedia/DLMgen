@@ -21,9 +21,9 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className={`bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden ${className}`}>
+    <div className={`bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-xl overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+      <div className="flex items-center justify-between p-4 hover:bg-gray-100 dark:hover:bg-white/[0.02] transition-colors">
         <div 
           className="flex items-center gap-2 cursor-pointer flex-1"
           onClick={() => setIsOpen(!isOpen)}
@@ -33,12 +33,12 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         >
           <ChevronDown
             size={16}
-            className={`text-gray-400 transition-transform duration-300 ${
+            className={`text-gray-500 dark:text-gray-400 transition-transform duration-300 ${
               isOpen ? 'rotate-0' : '-rotate-90'
             }`}
           />
           {icon && <span className="text-primary">{icon}</span>}
-          <span className="text-sm font-semibold text-white">{title}</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-white">{title}</span>
         </div>
         {headerRight && (
           <div className="flex items-center gap-2">
@@ -64,4 +64,3 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     </div>
   );
 };
-

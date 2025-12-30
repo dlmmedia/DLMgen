@@ -559,7 +559,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-black text-white overflow-hidden font-sans">
+    <div className="flex h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white overflow-hidden font-sans transition-colors">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={(tab) => { setActiveTab(tab); setSidebarOpen(false); }}
@@ -573,9 +573,9 @@ export default function App() {
 
       <main className="flex-1 flex flex-col relative min-w-0 transition-all duration-300">
         {/* Mobile Header */}
-        <div className="md:hidden flex items-center p-4 border-b border-white/5 bg-sidebar sticky top-0 z-30">
+        <div className="md:hidden flex items-center p-4 border-b border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-sidebar sticky top-0 z-30">
           <button onClick={() => setSidebarOpen(!sidebarOpen)}>
-            <Menu className="text-gray-400" />
+            <Menu className="text-gray-500 dark:text-gray-400" />
           </button>
           <span className="ml-4 font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-neon-blue">DLM Gen</span>
         </div>
@@ -592,8 +592,8 @@ export default function App() {
               <section>
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">Trending Now</h2>
-                    <p className="text-sm text-white/40">The most popular tracks today</p>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Trending Now</h2>
+                    <p className="text-sm text-gray-500 dark:text-white/40">The most popular tracks today</p>
                   </div>
                   <button onClick={() => setActiveTab('explore')} className="text-sm font-bold text-primary hover:text-accent transition-colors uppercase tracking-widest">
                     View All
@@ -617,8 +617,8 @@ export default function App() {
                 <section className="lg:col-span-2">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-1">Fresh Finds</h2>
-                      <p className="text-sm text-white/40">New tracks you might like</p>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Fresh Finds</h2>
+                      <p className="text-sm text-gray-500 dark:text-white/40">New tracks you might like</p>
                     </div>
                   </div>
                   <TrackList
@@ -632,11 +632,11 @@ export default function App() {
                 <section>
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h2 className="text-xl font-bold text-white mb-1">Top Creators</h2>
-                      <p className="text-sm text-white/40">AI Artisans to follow</p>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Top Creators</h2>
+                      <p className="text-sm text-gray-500 dark:text-white/40">AI Artisans to follow</p>
                     </div>
                   </div>
-                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
+                  <div className="bg-gray-100 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-2xl overflow-hidden divide-y divide-gray-200 dark:divide-white/5">
                     {CREATORS.map(creator => (
                       <CreatorCard key={creator.id} creator={creator} />
                     ))}
@@ -693,7 +693,7 @@ export default function App() {
             />
           ) : activeTab !== 'home' && (
             <div className="p-6 md:p-8 pt-0">
-              <h2 className="text-2xl font-bold mb-6 capitalize">{activeTab.replace('-', ' ')} Tracks</h2>
+              <h2 className="text-2xl font-bold mb-6 capitalize text-gray-900 dark:text-white">{activeTab.replace('-', ' ')} Tracks</h2>
               <TrackList
                 tracks={filteredTracks}
                 currentTrackId={currentTrack?.id}

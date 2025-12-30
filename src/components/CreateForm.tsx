@@ -258,23 +258,23 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
   };
 
   return (
-    <div className="bg-surface/50 backdrop-blur-sm border border-white/5 rounded-2xl flex flex-col h-full overflow-hidden shadow-2xl">
+    <div className="bg-white dark:bg-surface backdrop-blur-sm border border-gray-200 dark:border-white/5 rounded-2xl flex flex-col h-full overflow-hidden shadow-2xl">
       {/* Header */}
-      <div className="p-4 bg-gradient-to-b from-white/5 to-transparent border-b border-white/5">
+      <div className="p-4 bg-gradient-to-b from-gray-100 dark:from-white/5 to-transparent border-b border-gray-200 dark:border-white/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Credits badge */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full border border-gray-200 dark:border-white/10">
               <Music2 size={14} className="text-primary" />
-              <span className="text-sm font-medium text-white">3.9k</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">3.9k</span>
             </div>
 
             {/* Simple/Custom Toggle */}
-            <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+            <div className="flex bg-gray-200 dark:bg-black/40 p-1 rounded-xl border border-gray-300 dark:border-white/5">
               <button
                 onClick={() => setIsCustom(false)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  !isCustom ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'
+                  !isCustom ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 Simple
@@ -282,7 +282,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
               <button
                 onClick={() => setIsCustom(true)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  isCustom ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'
+                  isCustom ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 Custom
@@ -295,14 +295,14 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
             <button
               type="button"
               onClick={() => setShowVersionDropdown(!showVersionDropdown)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full border border-gray-200 dark:border-white/10 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
             >
-              <span className="text-sm font-medium text-white">{selectedVersion}</span>
-              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showVersionDropdown ? 'rotate-180' : ''}`} />
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{selectedVersion}</span>
+              <ChevronDown size={14} className={`text-gray-500 dark:text-gray-400 transition-transform ${showVersionDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {showVersionDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-black/95 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-black/95 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
                 {VERSION_OPTIONS.map(version => (
                   <button
                     key={version.value}
@@ -311,12 +311,12 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                       setSelectedVersion(version.value);
                       setShowVersionDropdown(false);
                     }}
-                    className={`w-full px-4 py-3 text-left hover:bg-white/10 transition-colors ${
-                      version.value === selectedVersion ? 'bg-primary/20' : ''
+                    className={`w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors ${
+                      version.value === selectedVersion ? 'bg-primary/10 dark:bg-primary/20' : ''
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${version.value === selectedVersion ? 'text-primary' : 'text-white'}`}>
+                      <span className={`text-sm font-medium ${version.value === selectedVersion ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
                         {version.label}
                       </span>
                       {version.value === selectedVersion && (
@@ -346,15 +346,15 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   <button
                     type="button"
                     onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg border border-gray-200 dark:border-white/10 transition-colors"
                   >
                     <Globe size={12} className="text-primary" />
-                    <span className="text-xs text-gray-300">{currentLanguage.native}</span>
-                    <ChevronDown size={10} className="text-gray-400" />
+                    <span className="text-xs text-gray-600 dark:text-gray-300">{currentLanguage.native}</span>
+                    <ChevronDown size={10} className="text-gray-500 dark:text-gray-400" />
                   </button>
                   
                   {showLanguageDropdown && (
-                    <div className="absolute right-0 top-full mt-1 w-56 max-h-64 overflow-y-auto bg-black/95 border border-white/10 rounded-xl shadow-2xl z-50 custom-scrollbar">
+                    <div className="absolute right-0 top-full mt-1 w-56 max-h-64 overflow-y-auto bg-white dark:bg-black/95 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 custom-scrollbar">
                       {SUPPORTED_LANGUAGES.map(lang => (
                         <button
                           key={lang.code}
@@ -363,8 +363,8 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                             setSelectedLanguage(lang.code);
                             setShowLanguageDropdown(false);
                           }}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors flex items-center justify-between ${
-                            lang.code === selectedLanguage ? 'bg-primary/20 text-primary' : 'text-gray-300'
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center justify-between ${
+                            lang.code === selectedLanguage ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'text-gray-700 dark:text-gray-300'
                           }`}
                         >
                           <span>{lang.name}</span>
@@ -384,7 +384,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                       value={lyrics}
                       onChange={(e) => setLyrics(e.target.value)}
                       placeholder="Write some lyrics or a prompt — or leave blank for instrumental"
-                      className="w-full h-40 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none font-mono leading-relaxed"
+                      className="w-full h-40 bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none font-mono leading-relaxed"
                     />
                     
                     {/* Action buttons */}
@@ -410,7 +410,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                         className={`p-2 rounded-lg transition-colors ${
                           showLyricsConfig 
                             ? 'bg-primary/20 border border-primary/30' 
-                            : 'bg-white/10 hover:bg-white/20'
+                            : 'bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20'
                         }`}
                         title="Advanced generation settings"
                       >
@@ -421,9 +421,9 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
 
                   {/* Syllable analysis */}
                   {lyricsAnalysis && lyricsAnalysis.totalSyllables > 0 && (
-                    <div className="flex items-center gap-4 text-xs text-gray-400">
-                      <span>Total: <span className="text-white font-mono">{lyricsAnalysis.totalSyllables}</span> syllables</span>
-                      <span>Avg: <span className="text-white font-mono">{lyricsAnalysis.averageSyllablesPerLine}</span>/line</span>
+                    <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                      <span>Total: <span className="text-gray-900 dark:text-white font-mono">{lyricsAnalysis.totalSyllables}</span> syllables</span>
+                      <span>Avg: <span className="text-gray-900 dark:text-white font-mono">{lyricsAnalysis.averageSyllablesPerLine}</span>/line</span>
                       {lyricsAnalysis.rhymeScheme && (
                         <span>Rhyme: <span className="text-primary font-mono">{lyricsAnalysis.rhymeScheme}</span></span>
                       )}
@@ -432,13 +432,13 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
 
                   {/* Lyrics config panel */}
                   {showLyricsConfig && (
-                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-300">Generation Settings</span>
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Generation Settings</span>
                         <button
                           type="button"
                           onClick={() => setShowLyricsConfig(false)}
-                          className="text-xs text-gray-500 hover:text-white"
+                          className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white"
                         >
                           ✕
                         </button>
@@ -448,7 +448,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                         value={lyricsConcept}
                         onChange={(e) => setLyricsConcept(e.target.value)}
                         placeholder="Concept or theme (e.g., 'love in a neon city')"
-                        className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50"
+                        className="w-full bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg p-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-primary/50"
                       />
 
                       <div className="flex flex-wrap gap-2">
@@ -460,7 +460,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                             className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
                               lyricsMood === mood
                                 ? 'bg-primary/20 border-primary/50 text-primary'
-                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
                             }`}
                           >
                             {mood}
@@ -480,15 +480,15 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   )}
 
                   {lyricsError && (
-                    <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
+                    <div className="text-xs text-red-600 dark:text-red-300 bg-red-100 dark:bg-red-500/10 border border-red-300 dark:border-red-500/40 rounded-lg px-3 py-2">
                       {lyricsError}
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="w-full h-32 bg-black/20 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center text-gray-500 gap-2">
-                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                    <Music className="text-gray-600" />
+                <div className="w-full h-32 bg-gray-100 dark:bg-black/20 border border-dashed border-gray-300 dark:border-white/10 rounded-xl flex flex-col items-center justify-center text-gray-500 gap-2">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-white/5 flex items-center justify-center">
+                    <Music className="text-gray-400 dark:text-gray-600" />
                   </div>
                   <span className="text-sm">Instrumental track enabled</span>
                 </div>
@@ -506,7 +506,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
                   placeholder="jazzy, tough, soundscapes, dubstep rock, atmospheric rock"
-                  className="w-full h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-all resize-none"
+                  className="w-full h-20 bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-all resize-none"
                 />
                 
                 <div className="flex flex-wrap gap-2">
@@ -515,7 +515,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                       key={tag}
                       type="button"
                       onClick={() => setStyle(prev => prev ? `${prev}, ${tag}` : tag)}
-                      className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs text-gray-400 hover:text-white border border-white/5 hover:border-primary/30 transition-all flex items-center gap-1"
+                      className="px-3 py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-white/5 hover:border-primary/30 transition-all flex items-center gap-1"
                     >
                       <span className="text-primary">+</span> {tag}
                     </button>
@@ -532,18 +532,18 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
             >
               <div className="space-y-4">
                 {/* Instrumental Toggle */}
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
+                <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-white/5">
                   <div className="flex items-center gap-2">
                     <Music size={16} className="text-primary" />
-                    <span className="text-sm text-gray-300">Instrumental</span>
-                    <div className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-400 cursor-help" title="Generate music without vocals">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Instrumental</span>
+                    <div className="w-4 h-4 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center text-[10px] text-gray-500 dark:text-gray-400 cursor-help" title="Generate music without vocals">
                       i
                     </div>
                   </div>
                   <div
                     onClick={() => setIsInstrumental(!isInstrumental)}
                     className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-colors ${
-                      isInstrumental ? 'bg-green-500' : 'bg-gray-700'
+                      isInstrumental ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
@@ -555,32 +555,32 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                 {/* Exclude styles */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">🚫</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">🚫</span>
                     <input
                       value={excludeStyles}
                       onChange={(e) => setExcludeStyles(e.target.value)}
                       placeholder="Exclude styles"
-                      className="flex-1 bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50"
+                      className="flex-1 bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg p-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-primary/50"
                     />
                   </div>
                 </div>
 
                 {/* Vocal Gender - Simple toggle */}
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
+                <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-white/5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-300">Vocal Gender</span>
-                    <div className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-400 cursor-help" title="Choose the vocal gender for the song">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Vocal Gender</span>
+                    <div className="w-4 h-4 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center text-[10px] text-gray-500 dark:text-gray-400 cursor-help" title="Choose the vocal gender for the song">
                       i
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1 border border-white/10">
+                  <div className="flex items-center gap-1 bg-gray-200 dark:bg-black/40 rounded-lg p-1 border border-gray-300 dark:border-white/10">
                     <button
                       type="button"
                       onClick={() => setVocalStyle('male')}
                       className={`px-3 py-1 rounded text-sm transition-all ${
                         vocalStyle === 'male' 
-                          ? 'bg-white/10 text-white' 
-                          : 'text-gray-500 hover:text-gray-300'
+                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                       }`}
                     >
                       Male
@@ -590,8 +590,8 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                       onClick={() => setVocalStyle('female')}
                       className={`px-3 py-1 rounded text-sm transition-all ${
                         vocalStyle === 'female' 
-                          ? 'bg-white/10 text-white' 
-                          : 'text-gray-500 hover:text-gray-300'
+                          ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                       }`}
                     >
                       Female
@@ -600,25 +600,25 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                 </div>
 
                 {/* Lyrics Mode - Simple toggle */}
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
+                <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-white/5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-300">Lyrics Mode</span>
-                    <div className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-400 cursor-help" title="Manual: write your own. Auto: AI generates from style">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Lyrics Mode</span>
+                    <div className="w-4 h-4 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center text-[10px] text-gray-500 dark:text-gray-400 cursor-help" title="Manual: write your own. Auto: AI generates from style">
                       i
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1 border border-white/10">
+                  <div className="flex items-center gap-1 bg-gray-200 dark:bg-black/40 rounded-lg p-1 border border-gray-300 dark:border-white/10">
                     <button
                       type="button"
                       onClick={() => {/* Manual mode - already default */}}
-                      className="px-3 py-1 rounded text-sm bg-white/10 text-white"
+                      className="px-3 py-1 rounded text-sm bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm"
                     >
                       Manual
                     </button>
                     <button
                       type="button"
                       onClick={() => handleGenerateLyrics(false)}
-                      className="px-3 py-1 rounded text-sm text-gray-500 hover:text-gray-300"
+                      className="px-3 py-1 rounded text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                     >
                       Auto
                     </button>
@@ -643,7 +643,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
 
                 {/* Duration */}
                 <div className="space-y-2">
-                  <span className="text-sm text-gray-300 flex items-center gap-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <Clock size={12} className="text-primary" /> Duration
                   </span>
                   <div className="flex flex-wrap gap-2">
@@ -655,7 +655,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                           durationSeconds === opt.value
                             ? 'bg-primary/20 border-primary/50 text-primary'
-                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                            : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
                         }`}
                       >
                         {opt.label}
@@ -675,7 +675,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                       placeholder="e.g. 120"
                       min={60}
                       max={200}
-                      className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50"
+                      className="w-full bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg p-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-primary/50"
                     />
                   </div>
                   <div>
@@ -683,7 +683,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                     <select
                       value={keySignature}
                       onChange={(e) => setKeySignature(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-primary/50"
+                      className="w-full bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg p-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary/50"
                     >
                       <option value="">Auto</option>
                       <option value="C major">C Major</option>
@@ -703,13 +703,13 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
             </CollapsibleSection>
 
             {/* Song Title */}
-            <div className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
+            <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-xl">
               <Music2 size={16} className="text-primary" />
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Song Title (Optional)"
-                className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none"
               />
             </div>
 
@@ -717,32 +717,32 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
             <div className="relative">
               <div 
                 onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
-                className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors"
+                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <Folder size={16} className="text-primary" />
-                  <span className="text-sm text-gray-400">Save to...</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Save to...</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-300">{selectedWorkspace}</span>
-                  <ChevronDown size={14} className={`text-gray-400 transition-transform ${showWorkspaceDropdown ? 'rotate-180' : ''}`} />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{selectedWorkspace}</span>
+                  <ChevronDown size={14} className={`text-gray-500 dark:text-gray-400 transition-transform ${showWorkspaceDropdown ? 'rotate-180' : ''}`} />
                 </div>
               </div>
 
               {showWorkspaceDropdown && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-black/95 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-black/95 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
                   <div className="max-h-48 overflow-y-auto custom-scrollbar">
                     {workspaces.map(ws => (
                       <div
                         key={ws}
-                        className={`group flex items-center justify-between px-4 py-2.5 hover:bg-white/10 transition-colors cursor-pointer ${
-                          ws === selectedWorkspace ? 'bg-primary/20' : ''
+                        className={`group flex items-center justify-between px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer ${
+                          ws === selectedWorkspace ? 'bg-primary/10 dark:bg-primary/20' : ''
                         }`}
                         onClick={() => handleSelectWorkspace(ws)}
                       >
                         <div className="flex items-center gap-2">
-                          <Folder size={14} className={ws === selectedWorkspace ? 'text-primary' : 'text-gray-400'} />
-                          <span className={`text-sm ${ws === selectedWorkspace ? 'text-primary font-medium' : 'text-gray-300'}`}>
+                          <Folder size={14} className={ws === selectedWorkspace ? 'text-primary' : 'text-gray-500 dark:text-gray-400'} />
+                          <span className={`text-sm ${ws === selectedWorkspace ? 'text-primary font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
                             {ws}
                           </span>
                         </div>
@@ -752,10 +752,10 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                               e.stopPropagation();
                               handleDeleteWorkspace(ws);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded transition-all"
                             title="Delete workspace"
                           >
-                            <X size={12} className="text-gray-400 hover:text-red-400" />
+                            <X size={12} className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400" />
                           </button>
                         )}
                       </div>
@@ -763,7 +763,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   </div>
                   
                   {/* Create new workspace */}
-                  <div className="border-t border-white/10">
+                  <div className="border-t border-gray-200 dark:border-white/10">
                     {showNewWorkspaceInput ? (
                       <div className="p-2 flex items-center gap-2">
                         <input
@@ -772,7 +772,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                           onChange={(e) => setNewWorkspaceName(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
                           placeholder="Workspace name..."
-                          className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
+                          className="flex-1 bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
                           autoFocus
                         />
                         <button
@@ -787,9 +787,9 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                             setShowNewWorkspaceInput(false);
                             setNewWorkspaceName('');
                           }}
-                          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                          className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors"
                         >
-                          <X size={14} className="text-gray-400" />
+                          <X size={14} className="text-gray-500 dark:text-gray-400" />
                         </button>
                       </div>
                     ) : (
@@ -798,7 +798,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                           e.stopPropagation();
                           setShowNewWorkspaceInput(true);
                         }}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                       >
                         <Plus size={14} />
                         <span>Create new workspace</span>
@@ -818,14 +818,14 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="A sad song about a robot who falls in love with a toaster..."
-                  className="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none leading-relaxed"
+                  className="w-full h-48 bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none leading-relaxed"
                 />
-                <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md p-1 rounded-lg border border-white/10">
-                  <span className="text-xs text-gray-400 px-2 font-medium">Instrumental</span>
+                <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-white/80 dark:bg-black/60 backdrop-blur-md p-1 rounded-lg border border-gray-200 dark:border-white/10">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 px-2 font-medium">Instrumental</span>
                   <div
                     onClick={() => setIsInstrumental(!isInstrumental)}
                     className={`w-9 h-5 rounded-full p-1 cursor-pointer transition-colors ${
-                      isInstrumental ? 'bg-green-500' : 'bg-gray-700'
+                      isInstrumental ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
                     }`}
                   >
                     <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${
@@ -843,7 +843,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   <button
                     key={tag}
                     onClick={() => setPrompt(tag)}
-                    className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/30 rounded-lg text-xs text-gray-400 hover:text-white transition-all text-left flex items-center justify-between group"
+                    className="px-4 py-3 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 hover:border-primary/30 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all text-left flex items-center justify-between group"
                   >
                     {tag}
                     <Sparkles size={10} className="opacity-0 group-hover:opacity-100 text-primary transition-opacity" />
@@ -865,7 +865,7 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                       durationSeconds === opt.value
                         ? 'bg-primary/20 border-primary/50 text-primary'
-                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                        : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
                     }`}
                   >
                     {opt.label}
@@ -878,11 +878,11 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-white/5 bg-gradient-to-b from-transparent to-black/40 backdrop-blur-xl sticky bottom-0 z-20">
+      <div className="p-4 border-t border-gray-200 dark:border-white/5 bg-gradient-to-b from-transparent to-gray-100 dark:from-surface dark:to-surface backdrop-blur-xl sticky bottom-0 z-20">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]" />
-            <span className="text-xs font-medium text-gray-300">DLM-{selectedVersion.toUpperCase()} Music Model</span>
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">DLM-{selectedVersion.toUpperCase()} Music Model</span>
           </div>
           <span className="text-xs text-gray-500 font-mono">120 Credits</span>
         </div>
@@ -892,8 +892,8 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
           disabled={(!isCustom && !prompt) || isGenerating}
           className={`w-full py-4 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.01] active:scale-[0.99]
             ${((!isCustom && !prompt) || isGenerating)
-              ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-              : 'bg-gradient-to-r from-primary via-red-700 to-black hover:shadow-[0_0_30px_rgba(153,27,27,0.4)]'
+              ? 'bg-gray-300 dark:bg-gray-800 text-gray-500 cursor-not-allowed'
+              : 'bg-gradient-to-r from-primary via-red-700 to-red-900 dark:to-black hover:shadow-[0_0_30px_rgba(153,27,27,0.4)]'
             }
           `}
         >

@@ -12,7 +12,7 @@ interface TrackListProps {
 export const TrackList: React.FC<TrackListProps> = ({ tracks, onPlay, currentTrackId, isPlaying }) => {
     return (
         <div className="w-full">
-            <div className="flex items-center text-sm font-medium text-gray-500 pb-3 border-b border-white/5 px-4 mb-2">
+            <div className="flex items-center text-sm font-medium text-gray-500 pb-3 border-b border-gray-200 dark:border-white/5 px-4 mb-2">
                 <div className="w-12">#</div>
                 <div className="flex-1">Title</div>
                 <div className="hidden md:block w-48">Artist</div>
@@ -28,7 +28,7 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, onPlay, currentTra
                             onClick={() => onPlay(track)}
                             className={`
                   group flex items-center py-2 px-4 rounded-md cursor-pointer transition-all duration-200
-                  ${isCurrent ? 'bg-white/10 text-primary' : 'hover:bg-white/5 text-gray-300 hover:text-white'}
+                  ${isCurrent ? 'bg-primary/10 dark:bg-white/10 text-primary' : 'hover:bg-gray-100 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}
                 `}
                         >
                             <div className="w-12 flex items-center">
@@ -39,28 +39,28 @@ export const TrackList: React.FC<TrackListProps> = ({ tracks, onPlay, currentTra
                                         <span className="w-1 bg-primary animate-pulse h-1/3 animation-delay-150"></span>
                                     </div>
                                 ) : (
-                                    <span className="group-hover:hidden">{index + 1}</span>
+                                    <span className="group-hover:hidden text-gray-500">{index + 1}</span>
                                 )}
-                                <Play size={14} className={`hidden group-hover:block ${isCurrent ? 'text-primary' : 'text-white'}`} />
+                                <Play size={14} className={`hidden group-hover:block ${isCurrent ? 'text-primary' : 'text-gray-900 dark:text-white'}`} />
                             </div>
 
                             <div className="flex-1 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded overflow-hidden bg-gray-800 flex-shrink-0">
+                                <div className="w-10 h-10 rounded overflow-hidden bg-gray-200 dark:bg-gray-800 flex-shrink-0">
                                     {track.coverUrl ? (
                                         <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="flex items-center justify-center h-full text-gray-600">
+                                        <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-600">
                                             <Music size={16} />
                                         </div>
                                     )}
                                 </div>
                                 <div>
-                                    <div className={`font-medium ${isCurrent ? 'text-primary' : 'text-white'}`}>{track.title}</div>
+                                    <div className={`font-medium ${isCurrent ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>{track.title}</div>
                                     <div className="md:hidden text-xs text-gray-500">{track.artist}</div>
                                 </div>
                             </div>
 
-                            <div className="hidden md:block w-48 text-sm text-gray-500 group-hover:text-gray-400">
+                            <div className="hidden md:block w-48 text-sm text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-400">
                                 {track.artist}
                             </div>
 

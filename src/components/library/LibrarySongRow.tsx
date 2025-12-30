@@ -87,13 +87,13 @@ export const LibrarySongRow: React.FC<LibrarySongRowProps> = ({
         group flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer
         ${isCurrent 
           ? 'bg-primary/10 border border-primary/20' 
-          : 'hover:bg-white/[0.03] border border-transparent'
+          : 'hover:bg-gray-100 dark:hover:bg-white/[0.03] border border-transparent'
         }
       `}
       onClick={onPlay}
     >
       {/* Cover Art with Play Button */}
-      <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+      <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-white/5">
         {track.coverUrl ? (
           <img
             src={track.coverUrl}
@@ -102,7 +102,7 @@ export const LibrarySongRow: React.FC<LibrarySongRowProps> = ({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Music size={18} className="text-white/30" />
+            <Music size={18} className="text-gray-400 dark:text-white/30" />
           </div>
         )}
         
@@ -133,11 +133,11 @@ export const LibrarySongRow: React.FC<LibrarySongRowProps> = ({
       {/* Track Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h4 className={`font-medium text-sm truncate ${isCurrent ? 'text-primary' : 'text-white'}`}>
+          <h4 className={`font-medium text-sm truncate ${isCurrent ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
             {track.title}
           </h4>
           {track.isVerified && (
-            <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[9px] font-medium rounded">v5</span>
+            <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-[9px] font-medium rounded">v5</span>
           )}
         </div>
         <p className="text-xs text-gray-500 truncate mt-0.5 max-w-lg">
@@ -174,7 +174,7 @@ export const LibrarySongRow: React.FC<LibrarySongRowProps> = ({
       </div>
 
       {/* Date */}
-      <div className="hidden md:block text-xs text-gray-600 w-20 text-right">
+      <div className="hidden md:block text-xs text-gray-500 dark:text-gray-600 w-20 text-right">
         {formatDate(track.createdAt)}
       </div>
 
@@ -185,8 +185,8 @@ export const LibrarySongRow: React.FC<LibrarySongRowProps> = ({
           onClick={onToggleLike}
           className={`p-2 rounded-lg transition-all ${
             isLiked 
-              ? 'text-red-500 hover:bg-red-500/10' 
-              : 'text-gray-500 hover:text-red-400 hover:bg-white/5 opacity-0 group-hover:opacity-100'
+              ? 'text-red-500 hover:bg-red-100 dark:hover:bg-red-500/10' 
+              : 'text-gray-500 hover:text-red-400 hover:bg-gray-100 dark:hover:bg-white/5 opacity-0 group-hover:opacity-100'
           }`}
         >
           <Heart size={16} className={isLiked ? 'fill-current' : ''} />
@@ -196,7 +196,7 @@ export const LibrarySongRow: React.FC<LibrarySongRowProps> = ({
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all opacity-0 group-hover:opacity-100"
+            className="p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-all opacity-0 group-hover:opacity-100"
           >
             <MoreHorizontal size={16} />
           </button>
@@ -220,4 +220,3 @@ export const LibrarySongRow: React.FC<LibrarySongRowProps> = ({
     </div>
   );
 };
-

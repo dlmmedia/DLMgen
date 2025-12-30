@@ -82,19 +82,19 @@ const MenuItem: React.FC<MenuItemProps> = ({
         className={`
           w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors
           ${disabled 
-            ? 'opacity-40 cursor-not-allowed text-gray-400' 
+            ? 'opacity-40 cursor-not-allowed text-gray-500 dark:text-gray-400' 
             : danger 
-              ? 'text-red-400 hover:bg-red-500/10' 
-              : 'text-gray-200 hover:bg-white/5'
+              ? 'text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10' 
+              : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'
           }
         `}
       >
-        <span className={`w-4 h-4 flex items-center justify-center ${danger ? 'text-red-400' : 'text-gray-400'}`}>
+        <span className={`w-4 h-4 flex items-center justify-center ${danger ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
           {icon}
         </span>
         <span className="flex-1 text-left">{label}</span>
         {badge && (
-          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-pink-500/20 text-pink-400 rounded">
+          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-pink-100 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400 rounded">
             {badge}
           </span>
         )}
@@ -105,7 +105,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
       
       {/* Submenu */}
       {hasSubmenu && showSubmenu && children && (
-        <div className="absolute left-full top-0 ml-1 min-w-[180px] bg-[#1a1a1a] border border-white/10 rounded-lg shadow-2xl overflow-hidden z-[60]">
+        <div className="absolute left-full top-0 ml-1 min-w-[180px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg shadow-2xl overflow-hidden z-[60]">
           {children}
         </div>
       )}
@@ -114,7 +114,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
 };
 
 const MenuDivider: React.FC = () => (
-  <div className="h-px bg-white/10 my-1" />
+  <div className="h-px bg-gray-200 dark:bg-white/10 my-1" />
 );
 
 export const SongContextMenu: React.FC<SongContextMenuProps> = ({
@@ -224,7 +224,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
       <div
         ref={menuRef}
         className={`
-          absolute z-50 min-w-[220px] bg-[#1a1a1a] border border-white/10 
+          absolute z-50 min-w-[220px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 
           rounded-lg shadow-2xl overflow-hidden backdrop-blur-xl
           ${position === 'left' ? 'right-0' : 'left-0'}
           top-full mt-1
@@ -283,9 +283,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                       onAddToPlaylist?.(track, playlist.id);
                       onClose();
                     }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                   >
-                    <Music2 size={12} className="text-gray-400" />
+                    <Music2 size={12} className="text-gray-500 dark:text-gray-400" />
                     <span className="truncate">{playlist.name}</span>
                   </button>
                 ))}
@@ -302,7 +302,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                     onChange={(e) => setNewPlaylistName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
                     placeholder="Playlist name"
-                    className="flex-1 px-2 py-1.5 text-sm bg-white/5 border border-white/10 rounded text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
+                    className="flex-1 px-2 py-1.5 text-sm bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
                     autoFocus
                   />
                   <button
@@ -316,7 +316,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                       setShowNewPlaylistInput(false);
                       setNewPlaylistName('');
                     }}
-                    className="p-1.5 text-gray-400 hover:bg-white/5 rounded transition-colors"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded transition-colors"
                   >
                     <X size={14} />
                   </button>
@@ -351,9 +351,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                       onMoveToWorkspace?.(track, workspace.id);
                       onClose();
                     }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                   >
-                    <FolderOpen size={12} className="text-gray-400" />
+                    <FolderOpen size={12} className="text-gray-500 dark:text-gray-400" />
                     <span className="truncate">{workspace.name}</span>
                   </button>
                 ))}
@@ -370,7 +370,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                     onChange={(e) => setNewWorkspaceName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
                     placeholder="Workspace name"
-                    className="flex-1 px-2 py-1.5 text-sm bg-white/5 border border-white/10 rounded text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
+                    className="flex-1 px-2 py-1.5 text-sm bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
                     autoFocus
                   />
                   <button
@@ -384,7 +384,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                       setShowNewWorkspaceInput(false);
                       setNewWorkspaceName('');
                     }}
-                    className="p-1.5 text-gray-400 hover:bg-white/5 rounded transition-colors"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded transition-colors"
                   >
                     <X size={14} />
                   </button>
@@ -449,9 +449,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
               onClick={() => {
                 handleCopyLink();
               }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
-              {copied ? <Check size={14} className="text-green-400" /> : <Link size={14} className="text-gray-400" />}
+              {copied ? <Check size={14} className="text-green-600 dark:text-green-400" /> : <Link size={14} className="text-gray-500 dark:text-gray-400" />}
               <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
             </button>
             <button
@@ -459,9 +459,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 onShare?.(track);
                 onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
-              <Copy size={14} className="text-gray-400" />
+              <Copy size={14} className="text-gray-500 dark:text-gray-400" />
               <span>Share...</span>
             </button>
             <MenuDivider />
@@ -470,9 +470,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out "${track.title}" by ${track.artist}`)}`, '_blank');
                 onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
-              <Twitter size={14} className="text-gray-400" />
+              <Twitter size={14} className="text-gray-500 dark:text-gray-400" />
               <span>Twitter / X</span>
             </button>
             <button
@@ -480,9 +480,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 window.open(`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(`Check out "${track.title}" by ${track.artist}`)}`, '_blank');
                 onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
-              <Facebook size={14} className="text-gray-400" />
+              <Facebook size={14} className="text-gray-500 dark:text-gray-400" />
               <span>Facebook</span>
             </button>
           </div>
@@ -500,9 +500,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 onDownload?.(track, 'mp3');
                 onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
-              <Download size={14} className="text-gray-400" />
+              <Download size={14} className="text-gray-500 dark:text-gray-400" />
               <span>Download MP3</span>
             </button>
             <button
@@ -510,9 +510,9 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 onDownload?.(track, 'wav');
                 onClose();
               }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition-colors opacity-50"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors opacity-50"
             >
-              <Download size={14} className="text-gray-400" />
+              <Download size={14} className="text-gray-500 dark:text-gray-400" />
               <span>Download WAV</span>
               <span className="ml-auto text-[10px] text-gray-500">Coming Soon</span>
             </button>
@@ -532,17 +532,17 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
         {/* Move to Trash / Delete */}
         {confirmDelete ? (
           <div className="px-4 py-2 space-y-2">
-            <p className="text-xs text-gray-400">Delete this track?</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Delete this track?</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="flex-1 px-2 py-1.5 text-xs text-gray-400 hover:bg-white/5 rounded transition-colors"
+                className="flex-1 px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 px-2 py-1.5 text-xs text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors"
+                className="flex-1 px-2 py-1.5 text-xs text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 rounded transition-colors"
               >
                 Delete
               </button>
@@ -560,4 +560,3 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
     </>
   );
 };
-

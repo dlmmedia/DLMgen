@@ -136,10 +136,10 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
     return (
       <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/5">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-white/5">
           <button
             onClick={() => onSelectWorkspace(null)}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors mb-4"
+            className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-4"
           >
             <ArrowLeft size={16} />
             <span>Back to Workspaces</span>
@@ -147,8 +147,8 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
 
           <div className="flex items-start gap-4">
             {/* Workspace Icon */}
-            <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-600/30 flex items-center justify-center flex-shrink-0 border border-white/10">
-              <FolderOpen size={36} className="text-amber-400/60" />
+            <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-600/30 flex items-center justify-center flex-shrink-0 border border-gray-200 dark:border-white/10">
+              <FolderOpen size={36} className="text-amber-500/60 dark:text-amber-400/60" />
             </div>
 
             {/* Workspace Info */}
@@ -162,22 +162,22 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
-                    className="text-2xl font-bold bg-transparent border-b border-primary focus:outline-none text-white"
+                    className="text-2xl font-bold bg-transparent border-b border-primary focus:outline-none text-gray-900 dark:text-white"
                     autoFocus
                   />
                   <button onClick={handleSaveEdit} className="p-1 text-primary hover:bg-primary/10 rounded">
                     <Check size={18} />
                   </button>
-                  <button onClick={() => setEditingWorkspaceId(null)} className="p-1 text-gray-400 hover:bg-white/5 rounded">
+                  <button onClick={() => setEditingWorkspaceId(null)} className="p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded">
                     <X size={18} />
                   </button>
                 </div>
               ) : (
-                <h2 className="text-2xl font-bold text-white mb-1 truncate">{selectedWorkspace.name}</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1 truncate">{selectedWorkspace.name}</h2>
               )}
               
               {selectedWorkspace.description && (
-                <p className="text-sm text-gray-400 mb-2">{selectedWorkspace.description}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{selectedWorkspace.description}</p>
               )}
               
               <div className="text-sm text-gray-500">
@@ -198,13 +198,13 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
                   <>
                     <button
                       onClick={() => handleStartEdit(selectedWorkspace)}
-                      className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                      className="p-2.5 rounded-full bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                     >
                       <Pencil size={18} />
                     </button>
                     <button
                       onClick={() => setShowDeleteConfirm(selectedWorkspace.id)}
-                      className="p-2.5 rounded-full bg-white/5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-colors"
+                      className="p-2.5 rounded-full bg-gray-100 dark:bg-white/5 hover:bg-red-100 dark:hover:bg-red-500/10 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -219,10 +219,10 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
         <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
           {workspaceTracks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                <FolderOpen size={24} className="text-gray-600" />
+              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                <FolderOpen size={24} className="text-gray-400 dark:text-gray-600" />
               </div>
-              <h3 className="text-lg font-medium text-white mb-2">This workspace is empty</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">This workspace is empty</h3>
               <p className="text-sm text-gray-500">Move songs here from your library using the context menu.</p>
             </div>
           ) : (
@@ -256,15 +256,15 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
         {/* Delete Confirmation */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="bg-surface border border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
-              <h3 className="text-lg font-bold text-white mb-2">Delete Workspace?</h3>
-              <p className="text-sm text-gray-400 mb-4">
+            <div className="bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Workspace?</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Songs will be moved to "My Songs". This action cannot be undone.
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowDeleteConfirm(null)}
-                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm font-medium transition-colors"
+                  className="flex-1 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -288,11 +288,11 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-white/5">
         <div className="text-sm text-gray-500">
           {workspaces.length} {workspaces.length === 1 ? 'workspace' : 'workspaces'}
           {unsortedTracks.length > 0 && (
-            <span className="text-gray-600"> • {unsortedTracks.length} unsorted</span>
+            <span className="text-gray-400 dark:text-gray-600"> • {unsortedTracks.length} unsorted</span>
           )}
         </div>
         <button
@@ -324,17 +324,17 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
       {/* New Workspace Modal */}
       {showNewWorkspaceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-surface border border-white/10 rounded-2xl p-6 w-80 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-2xl p-6 w-80 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">New Workspace</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">New Workspace</h3>
               <button
                 onClick={() => {
                   setShowNewWorkspaceModal(false);
                   setNewWorkspaceName('');
                 }}
-                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X size={18} className="text-gray-400" />
+                <X size={18} className="text-gray-500 dark:text-gray-400" />
               </button>
             </div>
             
@@ -344,7 +344,7 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
               onChange={(e) => setNewWorkspaceName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
               placeholder="Workspace name..."
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 mb-4"
+              className="w-full bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 mb-4"
               autoFocus
             />
             
@@ -354,7 +354,7 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
                   setShowNewWorkspaceModal(false);
                   setNewWorkspaceName('');
                 }}
-                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm font-medium transition-colors"
+                className="flex-1 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -373,15 +373,15 @@ export const LibraryWorkspacesView: React.FC<LibraryWorkspacesViewProps> = ({
       {/* Delete Confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-surface border border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Delete Workspace?</h3>
-            <p className="text-sm text-gray-400 mb-4">
+          <div className="bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Workspace?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Songs will be moved to "My Songs". This action cannot be undone.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm font-medium transition-colors"
+                className="flex-1 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-colors"
               >
                 Cancel
               </button>

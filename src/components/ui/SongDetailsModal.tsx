@@ -119,11 +119,11 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-3xl max-h-[90vh] bg-[#0d0d0d] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+      <div className="relative w-full max-w-3xl max-h-[90vh] bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
         >
           <X size={20} />
         </button>
@@ -139,7 +139,7 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
                 className="w-full h-full object-cover blur-3xl opacity-30 scale-125"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0d0d0d]/50 to-[#0d0d0d]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 dark:via-[#0d0d0d]/50 to-white dark:to-[#0d0d0d]" />
           </div>
 
           {/* Content */}
@@ -153,8 +153,8 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                  <Music size={48} className="text-white/30" />
+                <div className="w-full h-full bg-gray-200 dark:bg-white/10 flex items-center justify-center">
+                  <Music size={48} className="text-gray-400 dark:text-white/30" />
                 </div>
               )}
 
@@ -180,21 +180,21 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
             {/* Track Info */}
             <div className="flex-1 flex flex-col justify-end">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Song</p>
-              <h2 className="text-3xl font-bold text-white mb-2 line-clamp-2">{track.title}</h2>
-              <p className="text-lg text-gray-400 mb-4">{track.artist}</p>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">{track.title}</h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">{track.artist}</p>
 
               {/* Meta Info */}
               <div className="flex flex-wrap gap-3 text-sm">
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full text-gray-300">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-gray-700 dark:text-gray-300">
                   <Clock size={12} />
                   {formatDuration(track.duration)}
                 </span>
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full text-gray-300">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-gray-700 dark:text-gray-300">
                   <Tag size={12} />
                   {track.genre}
                 </span>
                 {track.isInstrumental && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 rounded-full text-green-400">
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-500/20 rounded-full text-green-700 dark:text-green-400">
                     <Music size={12} />
                     Instrumental
                   </span>
@@ -224,7 +224,7 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
                 {onDownload && (
                   <button
                     onClick={onDownload}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-full transition-colors"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white rounded-full transition-colors"
                   >
                     <Download size={16} />
                     Download
@@ -233,7 +233,7 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
                 {onShare && (
                   <button
                     onClick={onShare}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-full transition-colors"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white rounded-full transition-colors"
                   >
                     <Share2 size={16} />
                     Share
@@ -247,27 +247,27 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {/* Lyrics Section */}
-          <div className="px-6 py-4 border-t border-white/5">
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-white/5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 {track.isInstrumental ? (
-                  <Music size={16} className="text-green-400" />
+                  <Music size={16} className="text-green-600 dark:text-green-400" />
                 ) : (
                   <Mic size={16} className="text-primary" />
                 )}
-                <h3 className="text-lg font-semibold text-white">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   {track.isInstrumental ? 'Instrumental Track' : 'Lyrics'}
                 </h3>
               </div>
               {!track.isInstrumental && track.lyrics && (
                 <button
                   onClick={handleCopyLyrics}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-all"
                 >
                   {copied ? (
                     <>
-                      <Check size={14} className="text-green-400" />
-                      <span className="text-green-400">Copied</span>
+                      <Check size={14} className="text-green-600 dark:text-green-400" />
+                      <span className="text-green-600 dark:text-green-400">Copied</span>
                     </>
                   ) : (
                     <>
@@ -281,10 +281,10 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
 
             {track.isInstrumental ? (
               <div className="py-8 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
-                  <Music size={28} className="text-green-400" />
+                <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center mb-4">
+                  <Music size={28} className="text-green-600 dark:text-green-400" />
                 </div>
-                <p className="text-gray-400">
+                <p className="text-gray-600 dark:text-gray-400">
                   This is an instrumental track with no vocals
                 </p>
               </div>
@@ -305,7 +305,7 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
                     return <div key={index} className="h-2" />;
                   }
                   return (
-                    <p key={index} className="text-sm text-gray-300 leading-relaxed">
+                    <p key={index} className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                       {item.content}
                     </p>
                   );
@@ -313,8 +313,8 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
               </div>
             ) : (
               <div className="py-8 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                  <FileText size={28} className="text-gray-600" />
+                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                  <FileText size={28} className="text-gray-400 dark:text-gray-600" />
                 </div>
                 <p className="text-gray-500">No lyrics available</p>
               </div>
@@ -322,8 +322,8 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
           </div>
 
           {/* Details Section */}
-          <div className="px-6 py-4 border-t border-white/5 space-y-4">
-            <h3 className="text-lg font-semibold text-white">Details</h3>
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-white/5 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Details</h3>
 
             {/* Style Tags */}
             {track.styleTags && track.styleTags.length > 0 && (
@@ -346,21 +346,21 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
             {track.description && (
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Description</p>
-                <p className="text-sm text-gray-300 leading-relaxed">
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   {track.description}
                 </p>
               </div>
             )}
 
             {/* Created Date */}
-            <div className="flex items-center gap-2 text-sm text-gray-400">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
               <Calendar size={14} />
               <span>Created {formatDate(track.createdAt)}</span>
             </div>
 
             {/* Stats if available */}
             {(track.plays !== undefined || track.likes !== undefined) && (
-              <div className="flex gap-4 text-sm text-gray-400">
+              <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
                 {track.plays !== undefined && (
                   <span>{track.plays.toLocaleString()} plays</span>
                 )}
@@ -375,4 +375,3 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
     </div>
   );
 };
-

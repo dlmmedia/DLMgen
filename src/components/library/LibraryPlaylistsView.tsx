@@ -131,10 +131,10 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
     return (
       <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/5">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-white/5">
           <button
             onClick={() => onSelectPlaylist(null)}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors mb-4"
+            className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-4"
           >
             <ArrowLeft size={16} />
             <span>Back to Playlists</span>
@@ -142,11 +142,11 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
 
           <div className="flex items-start gap-4">
             {/* Playlist Cover */}
-            <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-primary/30 to-purple-600/30 flex items-center justify-center flex-shrink-0 border border-white/10">
+            <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-primary/30 to-purple-600/30 flex items-center justify-center flex-shrink-0 border border-gray-200 dark:border-white/10">
               {selectedPlaylist.coverUrl ? (
                 <img src={selectedPlaylist.coverUrl} alt={selectedPlaylist.name} className="w-full h-full object-cover rounded-xl" />
               ) : (
-                <Music2 size={40} className="text-white/40" />
+                <Music2 size={40} className="text-gray-400 dark:text-white/40" />
               )}
             </div>
 
@@ -161,18 +161,18 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
-                    className="text-2xl font-bold bg-transparent border-b border-primary focus:outline-none text-white"
+                    className="text-2xl font-bold bg-transparent border-b border-primary focus:outline-none text-gray-900 dark:text-white"
                     autoFocus
                   />
                   <button onClick={handleSaveEdit} className="p-1 text-primary hover:bg-primary/10 rounded">
                     <Check size={18} />
                   </button>
-                  <button onClick={() => setEditingPlaylistId(null)} className="p-1 text-gray-400 hover:bg-white/5 rounded">
+                  <button onClick={() => setEditingPlaylistId(null)} className="p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded">
                     <X size={18} />
                   </button>
                 </div>
               ) : (
-                <h2 className="text-2xl font-bold text-white mb-1 truncate">{selectedPlaylist.name}</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1 truncate">{selectedPlaylist.name}</h2>
               )}
               
               <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -191,18 +191,18 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
                   <Play size={16} className="fill-current" />
                   <span>Play All</span>
                 </button>
-                <button className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+                <button className="p-2.5 rounded-full bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                   <Shuffle size={18} />
                 </button>
                 <button
                   onClick={() => handleStartEdit(selectedPlaylist)}
-                  className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  className="p-2.5 rounded-full bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   <Pencil size={18} />
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(selectedPlaylist.id)}
-                  className="p-2.5 rounded-full bg-white/5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-colors"
+                  className="p-2.5 rounded-full bg-gray-100 dark:bg-white/5 hover:bg-red-100 dark:hover:bg-red-500/10 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -215,10 +215,10 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
         <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
           {playlistTracks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                <Music2 size={24} className="text-gray-600" />
+              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                <Music2 size={24} className="text-gray-400 dark:text-gray-600" />
               </div>
-              <h3 className="text-lg font-medium text-white mb-2">This playlist is empty</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">This playlist is empty</h3>
               <p className="text-sm text-gray-500">Add songs from your library to get started.</p>
             </div>
           ) : (
@@ -252,15 +252,15 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
         {/* Delete Confirmation */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="bg-surface border border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
-              <h3 className="text-lg font-bold text-white mb-2">Delete Playlist?</h3>
-              <p className="text-sm text-gray-400 mb-4">
+            <div className="bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Playlist?</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 This will permanently delete "{selectedPlaylist.name}". This action cannot be undone.
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowDeleteConfirm(null)}
-                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm font-medium transition-colors"
+                  className="flex-1 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -282,7 +282,7 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-white/5">
         <div className="text-sm text-gray-500">
           {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
         </div>
@@ -299,10 +299,10 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
       <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
         {playlists.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <Music2 size={24} className="text-gray-600" />
+            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+              <Music2 size={24} className="text-gray-400 dark:text-gray-600" />
             </div>
-            <h3 className="text-lg font-medium text-white mb-2">No playlists yet</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No playlists yet</h3>
             <p className="text-sm text-gray-500 mb-4">Create your first playlist to organize your music.</p>
             <button
               onClick={() => setShowNewPlaylistModal(true)}
@@ -332,17 +332,17 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
       {/* New Playlist Modal */}
       {showNewPlaylistModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-surface border border-white/10 rounded-2xl p-6 w-80 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-2xl p-6 w-80 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">New Playlist</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">New Playlist</h3>
               <button
                 onClick={() => {
                   setShowNewPlaylistModal(false);
                   setNewPlaylistName('');
                 }}
-                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X size={18} className="text-gray-400" />
+                <X size={18} className="text-gray-500 dark:text-gray-400" />
               </button>
             </div>
             
@@ -352,7 +352,7 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
               onChange={(e) => setNewPlaylistName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
               placeholder="Playlist name..."
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 mb-4"
+              className="w-full bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 mb-4"
               autoFocus
             />
             
@@ -362,7 +362,7 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
                   setShowNewPlaylistModal(false);
                   setNewPlaylistName('');
                 }}
-                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm font-medium transition-colors"
+                className="flex-1 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -381,15 +381,15 @@ export const LibraryPlaylistsView: React.FC<LibraryPlaylistsViewProps> = ({
       {/* Delete Confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-surface border border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Delete Playlist?</h3>
-            <p className="text-sm text-gray-400 mb-4">
+          <div className="bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-2xl p-6 w-80 shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Playlist?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               This action cannot be undone.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm font-medium transition-colors"
+                className="flex-1 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-colors"
               >
                 Cancel
               </button>

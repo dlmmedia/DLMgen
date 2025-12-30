@@ -110,14 +110,14 @@ export const LibraryHistoryView: React.FC<LibraryHistoryViewProps> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-white/5">
         <div className="text-sm text-gray-500">
           {historyTracks.length} {historyTracks.length === 1 ? 'track' : 'tracks'} in history
         </div>
         {historyTracks.length > 0 && onClearHistory && (
           <button
             onClick={onClearHistory}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded-lg transition-colors"
           >
             <Trash2 size={14} />
             <span>Clear History</span>
@@ -129,17 +129,17 @@ export const LibraryHistoryView: React.FC<LibraryHistoryViewProps> = ({
       <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
         {historyTracks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <Clock size={24} className="text-gray-600" />
+            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
+              <Clock size={24} className="text-gray-400 dark:text-gray-600" />
             </div>
-            <h3 className="text-lg font-medium text-white mb-2">No listening history</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No listening history</h3>
             <p className="text-sm text-gray-500">Songs you play will appear here.</p>
           </div>
         ) : (
           <div className="space-y-6">
             {groupedHistory.map((group) => (
               <div key={group.label}>
-                <h3 className="text-sm font-semibold text-gray-400 mb-3">{group.label}</h3>
+                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">{group.label}</h3>
                 <div className="space-y-1">
                   {group.items.map((item, index) => (
                     <div key={`${item.track.id}-${item.playedAt}-${index}`} className="relative">

@@ -4,7 +4,7 @@ import { CreateForm } from './CreateForm';
 import { GeneratedSongCard } from './GeneratedSongCard';
 import { LyricsViewer } from './LyricsViewer';
 import { CircularProgress } from './CircularProgress';
-import { Music, Sparkles, ListMusic } from 'lucide-react';
+import { Music, Sparkles, ListMusic, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 
 interface CreateStudioProps {
   generatedTracks: Track[];
@@ -44,6 +44,10 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
 }) => {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [mobileTab, setMobileTab] = useState<'form' | 'songs' | 'details'>('form');
+  
+  // Collapsible panel states
+  const [isFormCollapsed, setIsFormCollapsed] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Auto-select the newest track when a new one is created
   useEffect(() => {
@@ -53,6 +57,7 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
         // Only auto-select if we just finished generating
         if (newest.createdAt && Date.now() - newest.createdAt < 5000) {
           setSelectedTrack(newest);
+          setIsDetailsOpen(true);
           setMobileTab('details');
         }
       }
@@ -61,7 +66,13 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
 
   const handleTrackSelect = (track: Track) => {
     setSelectedTrack(track);
+    setIsDetailsOpen(true);
     setMobileTab('details');
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    setSelectedTrack(null);
   };
 
   const handlePlay = (track: Track) => {
@@ -73,19 +84,19 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
     <div className="h-full relative">
       {/* Generation Overlay */}
       {isGenerating && (
-        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center">
+        <div className="absolute inset-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-md flex items-center justify-center">
           <CircularProgress step={generationStep} />
         </div>
       )}
 
       {/* Mobile Tab Switcher */}
-      <div className="md:hidden flex bg-surface/50 border-b border-white/5 mb-4 rounded-xl overflow-hidden">
+      <div className="md:hidden flex bg-gray-100 dark:bg-surface border-b border-gray-200 dark:border-white/5 mb-4 rounded-xl overflow-hidden">
         <button
           onClick={() => setMobileTab('form')}
           className={`flex-1 py-3 text-sm font-medium transition-all ${
             mobileTab === 'form'
               ? 'bg-primary/20 text-primary'
-              : 'text-gray-400 hover:text-white'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
           Create
@@ -95,7 +106,7 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
           className={`flex-1 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
             mobileTab === 'songs'
               ? 'bg-primary/20 text-primary'
-              : 'text-gray-400 hover:text-white'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
           Songs
@@ -110,7 +121,7 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
           className={`flex-1 py-3 text-sm font-medium transition-all ${
             mobileTab === 'details'
               ? 'bg-primary/20 text-primary'
-              : 'text-gray-400 hover:text-white'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
           Details
@@ -118,14 +129,49 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
       </div>
 
       {/* Three-Panel Layout */}
-      <div className="flex gap-6 h-[calc(100vh-200px)] md:h-[calc(100vh-160px)]">
-        {/* Left Panel - Form */}
+      <div className="flex gap-4 h-[calc(100vh-200px)] md:h-[calc(100vh-160px)]">
+        {/* Left Panel - Form (Collapsible) */}
         <div
-          className={`w-full md:w-[380px] lg:w-[420px] flex-shrink-0 ${
-            mobileTab !== 'form' ? 'hidden md:block' : ''
-          }`}
+          className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
+            mobileTab !== 'form' ? 'hidden md:flex' : 'flex'
+          } ${isFormCollapsed ? 'w-14' : 'w-full md:w-[380px] lg:w-[420px]'}`}
         >
-          <CreateForm onSubmit={onSubmit} isGenerating={isGenerating} hideLoader />
+          {isFormCollapsed ? (
+            // Collapsed Form View - Compact Toolbar
+            <div className="h-full bg-white dark:bg-surface border border-gray-200 dark:border-white/5 rounded-2xl flex flex-col items-center py-4 gap-3">
+              <button
+                onClick={() => setIsFormCollapsed(false)}
+                className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors group"
+                title="Expand form"
+              >
+                <ChevronRight size={18} className="text-primary group-hover:scale-110 transition-transform" />
+              </button>
+              <div className="w-8 h-px bg-gray-200 dark:bg-white/10" />
+              <button
+                onClick={() => setIsFormCollapsed(false)}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-red-700 hover:from-primary/90 hover:to-red-600 flex items-center justify-center shadow-lg hover:shadow-primary/30 transition-all group"
+                title="Create new song"
+              >
+                <PlusCircle size={20} className="text-white group-hover:scale-110 transition-transform" />
+              </button>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium writing-mode-vertical transform -rotate-180" style={{ writingMode: 'vertical-rl' }}>
+                Create
+              </span>
+            </div>
+          ) : (
+            // Expanded Form View
+            <div className="relative w-full">
+              <CreateForm onSubmit={onSubmit} isGenerating={isGenerating} hideLoader />
+              {/* Collapse Button */}
+              <button
+                onClick={() => setIsFormCollapsed(true)}
+                className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-r-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/5 transition-colors z-10 shadow-sm"
+                title="Collapse form"
+              >
+                <ChevronLeft size={14} className="text-gray-500" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Center Panel - Generated Songs List */}
@@ -140,8 +186,8 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
                 <ListMusic size={16} className="text-primary" />
               </div>
               <div>
-                <h3 className="font-bold text-white">Your Creations</h3>
-                <p className="text-xs text-gray-500">
+                <h3 className="font-bold text-gray-900 dark:text-white">Your Creations</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
                   {generatedTracks.length} song{generatedTracks.length !== 1 ? 's' : ''} generated
                 </p>
               </div>
@@ -151,11 +197,11 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
             {generatedTracks.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center px-8">
-                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                  <Sparkles size={32} className="text-gray-600" />
+                <div className="w-20 h-20 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mb-4">
+                  <Sparkles size={32} className="text-gray-400 dark:text-gray-500" />
                 </div>
-                <h4 className="text-lg font-bold text-white/60 mb-2">No songs yet</h4>
-                <p className="text-sm text-gray-500 max-w-xs">
+                <h4 className="text-lg font-bold text-gray-600 dark:text-white/80 mb-2">No songs yet</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs">
                   Create your first AI-generated track using the form on the left
                 </p>
               </div>
@@ -183,28 +229,21 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
           </div>
         </div>
 
-        {/* Right Panel - Song Details & Lyrics */}
+        {/* Right Panel - Song Details & Lyrics (Auto-collapsible) */}
         <div
-          className={`w-full md:w-[340px] lg:w-[380px] flex-shrink-0 ${
+          className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
             mobileTab !== 'details' ? 'hidden md:block' : ''
-          }`}
+          } ${isDetailsOpen && selectedTrack ? 'w-full md:w-[340px] lg:w-[380px]' : 'w-0 md:w-0'}`}
         >
-          {selectedTrack ? (
-            <LyricsViewer
-              track={selectedTrack}
-              isCurrent={currentTrack?.id === selectedTrack.id}
-              isPlaying={isPlaying && currentTrack?.id === selectedTrack.id}
-              onPlay={() => handlePlay(selectedTrack)}
-            />
-          ) : (
-            <div className="h-full bg-surface/30 border border-white/5 rounded-2xl flex flex-col items-center justify-center text-center px-8">
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                <Music size={28} className="text-gray-600" />
-              </div>
-              <h4 className="text-lg font-bold text-white/60 mb-2">Select a track</h4>
-              <p className="text-sm text-gray-500">
-                Choose a song from your creations to view lyrics and details
-              </p>
+          {selectedTrack && isDetailsOpen && (
+            <div className="relative h-full w-[340px] lg:w-[380px]">
+              <LyricsViewer
+                track={selectedTrack}
+                isCurrent={currentTrack?.id === selectedTrack.id}
+                isPlaying={isPlaying && currentTrack?.id === selectedTrack.id}
+                onPlay={() => handlePlay(selectedTrack)}
+                onClose={handleCloseDetails}
+              />
             </div>
           )}
         </div>
@@ -212,4 +251,3 @@ export const CreateStudio: React.FC<CreateStudioProps> = ({
     </div>
   );
 };
-

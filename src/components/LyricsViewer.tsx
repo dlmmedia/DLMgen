@@ -11,6 +11,7 @@ import {
   Calendar,
   Mic,
   FileText,
+  X,
 } from 'lucide-react';
 
 interface LyricsViewerProps {
@@ -18,6 +19,7 @@ interface LyricsViewerProps {
   isCurrent?: boolean;
   isPlaying?: boolean;
   onPlay?: () => void;
+  onClose?: () => void;
 }
 
 // Parse lyrics to identify section headers like [Verse], [Chorus], etc.
@@ -64,6 +66,7 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
   isCurrent,
   isPlaying,
   onPlay,
+  onClose,
 }) => {
   const [copied, setCopied] = useState(false);
   const parsedLyrics = parseLyrics(track.lyrics || '');
@@ -80,19 +83,30 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
   };
 
   return (
-    <div className="h-full bg-surface/30 border border-white/5 rounded-2xl flex flex-col overflow-hidden">
+    <div className="h-full bg-white dark:bg-surface border border-gray-200 dark:border-white/10 rounded-2xl flex flex-col overflow-hidden">
       {/* Header with Cover Art */}
       <div className="relative">
+        {/* Close Button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center transition-colors group"
+            title="Close details"
+          >
+            <X size={16} className="text-white group-hover:scale-110 transition-transform" />
+          </button>
+        )}
+        
         {/* Cover Art Background Blur */}
         <div className="absolute inset-0 overflow-hidden">
           {track.coverUrl && (
             <img
               src={track.coverUrl}
               alt=""
-              className="w-full h-full object-cover blur-2xl opacity-30 scale-110"
+              className="w-full h-full object-cover blur-2xl opacity-30 dark:opacity-40 scale-110"
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-surface/50 to-surface" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white dark:via-surface/80 dark:to-surface" />
         </div>
 
         {/* Content */}
@@ -106,8 +120,8 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                <Music size={48} className="text-white/30" />
+              <div className="w-full h-full bg-gray-200 dark:bg-white/10 flex items-center justify-center">
+                <Music size={48} className="text-gray-400 dark:text-white/30" />
               </div>
             )}
 
@@ -130,21 +144,21 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
 
           {/* Track Info */}
           <div className="text-center">
-            <h2 className="text-xl font-bold text-white mb-1 truncate">{track.title}</h2>
-            <p className="text-sm text-gray-400 mb-3">{track.artist}</p>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1 truncate">{track.title}</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{track.artist}</p>
 
             {/* Meta Pills */}
             <div className="flex flex-wrap justify-center gap-2 text-xs">
-              <span className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-full text-gray-400">
+              <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-white/5 rounded-full text-gray-600 dark:text-gray-400">
                 <Clock size={10} />
                 {formatDuration(track.duration)}
               </span>
-              <span className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-full text-gray-400">
+              <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-white/5 rounded-full text-gray-600 dark:text-gray-400">
                 <Tag size={10} />
                 {track.genre}
               </span>
               {track.isInstrumental && (
-                <span className="flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded-full text-green-400">
+                <span className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-500/20 rounded-full text-green-700 dark:text-green-400">
                   <Music size={10} />
                   Instrumental
                 </span>
@@ -155,30 +169,30 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-white/5" />
+      <div className="h-px bg-gray-200 dark:bg-white/5" />
 
       {/* Lyrics Section */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-white/5">
           <div className="flex items-center gap-2">
             {track.isInstrumental ? (
-              <Music size={14} className="text-green-400" />
+              <Music size={14} className="text-green-600 dark:text-green-400" />
             ) : (
               <Mic size={14} className="text-primary" />
             )}
-            <span className="text-sm font-medium text-white">
+            <span className="text-sm font-medium text-gray-900 dark:text-white">
               {track.isInstrumental ? 'Instrumental Track' : 'Lyrics'}
             </span>
           </div>
           {!track.isInstrumental && track.lyrics && (
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-all"
             >
               {copied ? (
                 <>
-                  <Check size={12} className="text-green-400" />
-                  <span className="text-green-400">Copied</span>
+                  <Check size={12} className="text-green-600 dark:text-green-400" />
+                  <span className="text-green-600 dark:text-green-400">Copied</span>
                 </>
               ) : (
                 <>
@@ -193,10 +207,10 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4">
           {track.isInstrumental ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
-                <Music size={28} className="text-green-400" />
+              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center mb-4">
+                <Music size={28} className="text-green-600 dark:text-green-400" />
               </div>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
                 This is an instrumental track with no vocals
               </p>
             </div>
@@ -217,7 +231,7 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
                   return <div key={index} className="h-2" />;
                 }
                 return (
-                  <p key={index} className="text-sm text-gray-300 leading-relaxed font-mono">
+                  <p key={index} className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-mono">
                     {item.content}
                   </p>
                 );
@@ -225,19 +239,19 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                <FileText size={28} className="text-gray-600" />
+              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mb-4">
+                <FileText size={28} className="text-gray-400 dark:text-gray-500" />
               </div>
-              <p className="text-gray-500 text-sm">No lyrics available</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No lyrics available</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Footer with Date & Description */}
-      <div className="border-t border-white/5 p-4 space-y-3">
+      <div className="border-t border-gray-200 dark:border-white/10 p-4 space-y-3 bg-gray-50 dark:bg-white/5">
         {/* Date */}
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <Calendar size={12} />
           <span>Created {formatDate(track.createdAt)}</span>
         </div>
@@ -258,7 +272,7 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
 
         {/* Description */}
         {track.description && (
-          <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
             {track.description}
           </p>
         )}
@@ -266,4 +280,3 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
     </div>
   );
 };
-

@@ -128,8 +128,8 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ step: extern
       </div>
 
       {/* Step Text */}
-      <h3 className="text-xl font-bold mb-2 text-white">{STEPS[currentStep].text}</h3>
-      <p className="text-gray-400 text-sm mb-6">Creating your unique sound signature...</p>
+      <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">{STEPS[currentStep].text}</h3>
+      <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Creating your unique sound signature...</p>
 
       {/* Step Indicators */}
       <div className="flex gap-3">
@@ -172,7 +172,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ step: extern
       </div>
 
       {/* Progress percentage */}
-      <div className="mt-6 text-sm font-mono text-white/40">
+      <div className="mt-6 text-sm font-mono text-gray-400 dark:text-white/40">
         {Math.round(progress)}% complete
       </div>
     </div>
