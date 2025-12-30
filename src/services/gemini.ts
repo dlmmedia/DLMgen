@@ -2,8 +2,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedMetadata } from "../types";
 
 // Initialize Gemini
-// Note: API Key must be in process.env.API_KEY
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Note: API Key must be in VITE_GEMINI_API_KEY environment variable
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
 
 const SYSTEM_INSTRUCTION = `You are an expert music composer and songwriter for a top-tier AI music generation app. 
 Your goal is to create creative, catchy, and coherent song metadata (lyrics, title, style tags) based on user prompts.
