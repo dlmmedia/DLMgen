@@ -12,11 +12,22 @@ import {
   storedSongToTrack, 
   trackToSaveParams, 
   deleteSong,
-  loadLibraryData,
-  saveLibraryData,
-  addToHistory as addToHistoryStorage,
-  clearHistory as clearHistoryStorage,
 } from './services/songStorage';
+import {
+  loadLibraryData,
+  createPlaylist as createPlaylistAPI,
+  addTrackToPlaylist as addTrackToPlaylistAPI,
+  deletePlaylist as deletePlaylistAPI,
+  updatePlaylist as updatePlaylistAPI,
+  createWorkspace as createWorkspaceAPI,
+  moveTrackToWorkspace as moveTrackToWorkspaceAPI,
+  deleteWorkspace as deleteWorkspaceAPI,
+  updateWorkspace as updateWorkspaceAPI,
+  addToHistory as addToHistoryAPI,
+  clearHistory as clearHistoryAPI,
+  likeTrack as likeTrackAPI,
+  unlikeTrack as unlikeTrackAPI,
+} from './services/libraryService';
 import { generateElevenLabsTrack } from './services/elevenlabs';
 import { downloadTrack, shareTrack } from './services/downloadService';
 import { CreateSongParams, Track, Playlist, QueueItem, Workspace, HistoryEntry } from './types';
@@ -218,26 +229,9 @@ export default function App() {
     loadLibrary();
   }, []);
 
-  // Persist library data when it changes
-  useEffect(() => {
-    if (!libraryLoaded) return;
-    
-    const saveData = async () => {
-      try {
-        await saveLibraryData({
-          playlists,
-          workspaces,
-          history,
-          likedTrackIds,
-        });
-      } catch (e) {
-        console.error('Failed to save library data:', e);
-      }
-    };
-    saveData();
-  }, [playlists, workspaces, history, likedTrackIds, libraryLoaded]);
+  // No need for persist effect - all changes are immediately saved via API calls
 
-  // Load songs from Blob storage on mount
+  // Load songs from Neon Postgres on mount
   useEffect(() => {
     const fetchSongs = async () => {
       try {
@@ -247,13 +241,6 @@ export default function App() {
         setGeneratedTracks(tracks);
       } catch (e) {
         console.error("Failed to load tracks from storage", e);
-        // Fallback to localStorage if Blob storage fails
-        try {
-          const saved = localStorage.getItem('dlm_generated_tracks');
-          if (saved) setGeneratedTracks(JSON.parse(saved));
-        } catch (localErr) {
-          console.error("Failed to load from localStorage", localErr);
-        }
       } finally {
         setIsLoadingSongs(false);
       }
@@ -290,20 +277,23 @@ export default function App() {
   }, [activeTab]);
 
   const handlePlay = useCallback((track: Track) => {
+    // Prefer audioUrl if available (persisted URL from cloud storage)
+    const audioSource = track.audioUrl || track.url;
+    
     if (currentTrack?.id === track.id) {
       if (isPlaying) {
         pauseNow();
         setIsPlaying(false);
       } else {
-        void playUrlNow(track.url);
+        void playUrlNow(audioSource);
         setIsPlaying(true);
       }
     } else {
       setCurrentTrack(track);
-      void playUrlNow(track.url);
+      void playUrlNow(audioSource);
       setIsPlaying(true);
       
-      // Add to history
+      // Add to history - update local state and persist to API
       const newEntry: HistoryEntry = {
         trackId: track.id,
         playedAt: Date.now(),
@@ -312,6 +302,8 @@ export default function App() {
         const updated = [newEntry, ...prev].slice(0, 100);
         return updated;
       });
+      // Persist to database (fire and forget)
+      addToHistoryAPI(track.id).catch(e => console.warn('Failed to add to history:', e));
     }
   }, [currentTrack, isPlaying, pauseNow, playUrlNow]);
 
@@ -321,7 +313,7 @@ export default function App() {
     const nextIndex = (currentIndex + 1) % TRACKS.length;
     const next = TRACKS[nextIndex];
     setCurrentTrack(next);
-    void playUrlNow(next.url);
+    void playUrlNow(next.audioUrl || next.url);
     setIsPlaying(true);
   };
 
@@ -331,7 +323,7 @@ export default function App() {
     const prevIndex = (currentIndex - 1 + TRACKS.length) % TRACKS.length;
     const prev = TRACKS[prevIndex];
     setCurrentTrack(prev);
-    void playUrlNow(prev.url);
+    void playUrlNow(prev.audioUrl || prev.url);
     setIsPlaying(true);
   };
 
@@ -407,8 +399,16 @@ export default function App() {
       try {
         const saveParams = trackToSaveParams(newTrack, isBase64Cover ? coverUrl : undefined);
         const savedSong = await saveSong(saveParams);
+        
+        // Update track with persisted URLs from cloud storage
         if (savedSong.coverUrl) {
           newTrack.coverUrl = savedSong.coverUrl;
+        }
+        if (savedSong.audioUrl && !savedSong.audioUrl.startsWith('blob:')) {
+          // Update to the permanent URL from cloud storage
+          newTrack.url = savedSong.audioUrl;
+          newTrack.audioUrl = savedSong.audioUrl;
+          console.log('Audio URL updated to permanent storage:', savedSong.audioUrl);
         }
         console.log('Song saved to Vercel Blob:', savedSong);
       } catch (saveError) {
@@ -461,20 +461,8 @@ export default function App() {
         setIsPlaying(false);
       }
 
-      // Delete from storage
+      // Delete from Neon + Vercel Blob storage
       await deleteSong(trackId);
-      
-      // Also remove from localStorage backup
-      try {
-        const localSongs = localStorage.getItem('dlm_gen_songs');
-        if (localSongs) {
-          const songs = JSON.parse(localSongs);
-          const filtered = songs.filter((s: any) => s.id !== trackId);
-          localStorage.setItem('dlm_gen_songs', JSON.stringify(filtered));
-        }
-      } catch (e) {
-        console.error('Failed to remove from localStorage:', e);
-      }
     } catch (error) {
       console.error('Failed to delete track:', error);
     }
@@ -493,7 +481,7 @@ export default function App() {
       const [nextItem, ...rest] = queue;
       setQueue(rest);
       setCurrentTrack(nextItem.track);
-      void playUrlNow(nextItem.track.url);
+      void playUrlNow(nextItem.track.audioUrl || nextItem.track.url);
       setIsPlaying(true);
       return;
     }
@@ -501,20 +489,28 @@ export default function App() {
     handleNext();
   }, [queue, playUrlNow, handleNext]);
 
-  // Playlist management
-  const handleCreatePlaylist = useCallback((name: string, initialTrack?: Track) => {
-    const newPlaylist: Playlist = {
-      id: `playlist-${Date.now()}`,
-      name,
-      trackIds: initialTrack ? [initialTrack.id] : [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    setPlaylists(prev => [...prev, newPlaylist]);
-    console.log(`Created playlist "${name}"`);
+  // Playlist management - with API persistence
+  const handleCreatePlaylist = useCallback(async (name: string, initialTrack?: Track) => {
+    try {
+      const newPlaylist = await createPlaylistAPI(name, initialTrack?.id);
+      setPlaylists(prev => [...prev, newPlaylist]);
+      console.log(`Created playlist "${name}"`);
+    } catch (e) {
+      console.error('Failed to create playlist:', e);
+      // Optimistic fallback
+      const newPlaylist: Playlist = {
+        id: `playlist-${Date.now()}`,
+        name,
+        trackIds: initialTrack ? [initialTrack.id] : [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setPlaylists(prev => [...prev, newPlaylist]);
+    }
   }, []);
 
-  const handleAddToPlaylist = useCallback((track: Track, playlistId: string) => {
+  const handleAddToPlaylist = useCallback(async (track: Track, playlistId: string) => {
+    // Optimistic update
     setPlaylists(prev => prev.map(p => {
       if (p.id === playlistId && !p.trackIds.includes(track.id)) {
         return { ...p, trackIds: [...p.trackIds, track.id], updatedAt: Date.now() };
@@ -523,36 +519,63 @@ export default function App() {
     }));
     const playlist = playlists.find(p => p.id === playlistId);
     console.log(`Added "${track.title}" to "${playlist?.name || 'playlist'}"`);
+    
+    // Persist to API
+    try {
+      await addTrackToPlaylistAPI(track.id, playlistId);
+    } catch (e) {
+      console.error('Failed to add track to playlist:', e);
+    }
   }, [playlists]);
 
-  const handleDeletePlaylist = useCallback((playlistId: string) => {
+  const handleDeletePlaylist = useCallback(async (playlistId: string) => {
     setPlaylists(prev => prev.filter(p => p.id !== playlistId));
     console.log(`Deleted playlist`);
+    
+    try {
+      await deletePlaylistAPI(playlistId);
+    } catch (e) {
+      console.error('Failed to delete playlist:', e);
+    }
   }, []);
 
-  const handleUpdatePlaylist = useCallback((playlistId: string, updates: Partial<Playlist>) => {
+  const handleUpdatePlaylist = useCallback(async (playlistId: string, updates: Partial<Playlist>) => {
     setPlaylists(prev => prev.map(p => {
       if (p.id === playlistId) {
         return { ...p, ...updates, updatedAt: Date.now() };
       }
       return p;
     }));
+    
+    try {
+      await updatePlaylistAPI(playlistId, updates);
+    } catch (e) {
+      console.error('Failed to update playlist:', e);
+    }
   }, []);
 
-  // Workspace management
-  const handleCreateWorkspace = useCallback((name: string, initialTrack?: Track) => {
-    const newWorkspace: Workspace = {
-      id: `workspace-${Date.now()}`,
-      name,
-      trackIds: initialTrack ? [initialTrack.id] : [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    setWorkspaces(prev => [...prev, newWorkspace]);
-    console.log(`Created workspace "${name}"`);
+  // Workspace management - with API persistence
+  const handleCreateWorkspace = useCallback(async (name: string, initialTrack?: Track) => {
+    try {
+      const newWorkspace = await createWorkspaceAPI(name, initialTrack?.id);
+      setWorkspaces(prev => [...prev, newWorkspace]);
+      console.log(`Created workspace "${name}"`);
+    } catch (e) {
+      console.error('Failed to create workspace:', e);
+      // Optimistic fallback
+      const newWorkspace: Workspace = {
+        id: `workspace-${Date.now()}`,
+        name,
+        trackIds: initialTrack ? [initialTrack.id] : [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setWorkspaces(prev => [...prev, newWorkspace]);
+    }
   }, []);
 
-  const handleMoveToWorkspace = useCallback((track: Track, workspaceId: string) => {
+  const handleMoveToWorkspace = useCallback(async (track: Track, workspaceId: string) => {
+    // Optimistic update
     setWorkspaces(prev => prev.map(w => {
       // Remove from all workspaces first
       const filtered = w.trackIds.filter(id => id !== track.id);
@@ -564,13 +587,20 @@ export default function App() {
     }));
     const workspace = workspaces.find(w => w.id === workspaceId);
     console.log(`Moved "${track.title}" to "${workspace?.name || 'workspace'}"`);
+    
+    // Persist to API
+    try {
+      await moveTrackToWorkspaceAPI(track.id, workspaceId);
+    } catch (e) {
+      console.error('Failed to move track to workspace:', e);
+    }
   }, [workspaces]);
 
-  const handleDeleteWorkspace = useCallback((workspaceId: string) => {
+  const handleDeleteWorkspace = useCallback(async (workspaceId: string) => {
     // Don't delete default workspace
     if (workspaceId === 'workspace-default') return;
     
-    // Move tracks to default workspace
+    // Optimistic update - move tracks to default workspace
     setWorkspaces(prev => {
       const toDelete = prev.find(w => w.id === workspaceId);
       if (!toDelete) return prev;
@@ -589,21 +619,36 @@ export default function App() {
         });
     });
     console.log(`Deleted workspace`);
+    
+    try {
+      await deleteWorkspaceAPI(workspaceId);
+    } catch (e) {
+      console.error('Failed to delete workspace:', e);
+    }
   }, []);
 
-  const handleUpdateWorkspace = useCallback((workspaceId: string, updates: Partial<Workspace>) => {
+  const handleUpdateWorkspace = useCallback(async (workspaceId: string, updates: Partial<Workspace>) => {
     setWorkspaces(prev => prev.map(w => {
       if (w.id === workspaceId) {
         return { ...w, ...updates, updatedAt: Date.now() };
       }
       return w;
     }));
+    
+    try {
+      await updateWorkspaceAPI(workspaceId, updates);
+    } catch (e) {
+      console.error('Failed to update workspace:', e);
+    }
   }, []);
 
-  // Liked songs management
-  const handleToggleLike = useCallback((track: Track) => {
+  // Liked songs management - with API persistence
+  const handleToggleLike = useCallback(async (track: Track) => {
+    const isCurrentlyLiked = likedTrackIds.includes(track.id);
+    
+    // Optimistic update
     setLikedTrackIds(prev => {
-      if (prev.includes(track.id)) {
+      if (isCurrentlyLiked) {
         console.log(`Unliked "${track.title}"`);
         return prev.filter(id => id !== track.id);
       } else {
@@ -611,12 +656,29 @@ export default function App() {
         return [...prev, track.id];
       }
     });
-  }, []);
+    
+    // Persist to API
+    try {
+      if (isCurrentlyLiked) {
+        await unlikeTrackAPI(track.id);
+      } else {
+        await likeTrackAPI(track.id);
+      }
+    } catch (e) {
+      console.error('Failed to toggle like:', e);
+    }
+  }, [likedTrackIds]);
 
-  // History management
-  const handleClearHistory = useCallback(() => {
+  // History management - with API persistence
+  const handleClearHistory = useCallback(async () => {
     setHistory([]);
     console.log('History cleared');
+    
+    try {
+      await clearHistoryAPI();
+    } catch (e) {
+      console.error('Failed to clear history:', e);
+    }
   }, []);
 
   // Download handler
@@ -791,11 +853,12 @@ export default function App() {
         isPlaying={isPlaying}
         onPlayPause={() => {
           if (!currentTrack) return;
+          const audioSource = currentTrack.audioUrl || currentTrack.url;
           if (isPlaying) {
             pauseNow();
             setIsPlaying(false);
           } else {
-            void playUrlNow(currentTrack.url);
+            void playUrlNow(audioSource);
             setIsPlaying(true);
           }
         }}

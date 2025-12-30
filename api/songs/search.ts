@@ -1,25 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../lib/db';
 
-interface StoredSong {
-  id: string;
-  title: string;
-  artist: string;
-  audio_url: string;
-  cover_url: string;
-  genre: string;
-  duration: number;
-  lyrics?: string;
-  style_tags?: string[];
-  description?: string;
-  is_instrumental?: boolean;
-  bpm?: number;
-  key_signature?: string;
-  vocal_style?: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -35,26 +16,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { genre, limit = '50', offset = '0' } = req.query;
-    const limitNum = Math.min(parseInt(limit as string) || 50, 100);
-    const offsetNum = parseInt(offset as string) || 0;
+    const { q, limit = '20' } = req.query;
 
-    let songs: StoredSong[];
-
-    if (genre && typeof genre === 'string') {
-      songs = await sql`
-        SELECT * FROM songs 
-        WHERE genre = ${genre}
-        ORDER BY created_at DESC 
-        LIMIT ${limitNum} OFFSET ${offsetNum}
-      `;
-    } else {
-      songs = await sql`
-        SELECT * FROM songs 
-        ORDER BY created_at DESC 
-        LIMIT ${limitNum} OFFSET ${offsetNum}
-      `;
+    if (!q || typeof q !== 'string') {
+      return res.status(400).json({ error: 'Missing search query' });
     }
+
+    const limitNum = Math.min(parseInt(limit as string) || 20, 50);
+
+    // Full-text search on title and lyrics
+    const songs = await sql`
+      SELECT *, 
+        ts_rank(to_tsvector('english', title || ' ' || COALESCE(lyrics, '')), plainto_tsquery('english', ${q})) as rank
+      FROM songs 
+      WHERE to_tsvector('english', title || ' ' || COALESCE(lyrics, '')) @@ plainto_tsquery('english', ${q})
+      ORDER BY rank DESC, created_at DESC
+      LIMIT ${limitNum}
+    `;
 
     // Transform to match frontend expected format
     const transformedSongs = songs.map(song => ({
@@ -80,13 +58,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       songs: transformedSongs,
       count: transformedSongs.length,
+      query: q,
     });
 
   } catch (error) {
-    console.error('List songs error:', error);
+    console.error('Search songs error:', error);
     return res.status(500).json({ 
-      error: 'Failed to list songs',
+      error: 'Failed to search songs',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }
+

@@ -89,7 +89,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
     // Delay hiding to allow mouse to move to submenu
     hideTimeoutRef.current = setTimeout(() => {
       setShowSubmenu(false);
-    }, 150);
+    }, 300);
   };
 
   // Clean up timeout on unmount
@@ -156,6 +156,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
           `}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onClick={(e) => e.stopPropagation()}
         >
           {children}
         </div>
