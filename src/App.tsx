@@ -4,16 +4,29 @@ import { Player } from './components/Player';
 import { HeroVisualizer } from './components/HeroVisualizer';
 import { TrackList } from './components/TrackList';
 import { TRACKS } from './data/tracks';
-import { CreateForm } from './components/CreateForm';
+import { CreateStudio } from './components/CreateStudio';
 import { generateSongMetadata, generateAlbumArt } from './services/gemini';
 import { selectTrackForMetadata } from './utils/mockGenerator';
-import { saveSong, loadSongs, storedSongToTrack, trackToSaveParams } from './services/songStorage';
+import { 
+  saveSong, 
+  loadSongs, 
+  storedSongToTrack, 
+  trackToSaveParams, 
+  deleteSong,
+  loadLibraryData,
+  saveLibraryData,
+  addToHistory as addToHistoryStorage,
+  clearHistory as clearHistoryStorage,
+} from './services/songStorage';
 import { generateElevenLabsTrack } from './services/elevenlabs';
-import { CreateSongParams, Track } from './types';
+import { downloadTrack, shareTrack } from './services/downloadService';
+import { CreateSongParams, Track, Playlist, QueueItem, Workspace, HistoryEntry } from './types';
 import { Menu } from 'lucide-react';
 import { SongCard } from './components/SongCard';
 import { CreatorCard } from './components/CreatorCard';
 import { CREATORS } from './data/tracks';
+import { SongDetailsModal } from './components/ui/SongDetailsModal';
+import { LibraryView } from './components/library';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -21,6 +34,7 @@ export default function App() {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -99,6 +113,54 @@ export default function App() {
   const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
   const [isLoadingSongs, setIsLoadingSongs] = useState(true);
 
+  // Playlist, Workspace, History, and Queue state
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [likedTrackIds, setLikedTrackIds] = useState<string[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
+  
+  // Song Details Modal state
+  const [detailsModalTrack, setDetailsModalTrack] = useState<Track | null>(null);
+
+  // Load library data on mount
+  useEffect(() => {
+    const loadLibrary = async () => {
+      try {
+        const data = await loadLibraryData();
+        setPlaylists(data.playlists);
+        setWorkspaces(data.workspaces);
+        setHistory(data.history);
+        setLikedTrackIds(data.likedTrackIds);
+        setLibraryLoaded(true);
+      } catch (e) {
+        console.error('Failed to load library data:', e);
+        setLibraryLoaded(true);
+      }
+    };
+    loadLibrary();
+  }, []);
+
+  // Persist library data when it changes
+  useEffect(() => {
+    if (!libraryLoaded) return;
+    
+    const saveData = async () => {
+      try {
+        await saveLibraryData({
+          playlists,
+          workspaces,
+          history,
+          likedTrackIds,
+        });
+      } catch (e) {
+        console.error('Failed to save library data:', e);
+      }
+    };
+    saveData();
+  }, [playlists, workspaces, history, likedTrackIds, libraryLoaded]);
+
   // Load songs from Blob storage on mount
   useEffect(() => {
     const fetchSongs = async () => {
@@ -151,7 +213,7 @@ export default function App() {
     }
   }, [activeTab]);
 
-  const handlePlay = (track: Track) => {
+  const handlePlay = useCallback((track: Track) => {
     if (currentTrack?.id === track.id) {
       if (isPlaying) {
         pauseNow();
@@ -164,8 +226,18 @@ export default function App() {
       setCurrentTrack(track);
       void playUrlNow(track.url);
       setIsPlaying(true);
+      
+      // Add to history
+      const newEntry: HistoryEntry = {
+        trackId: track.id,
+        playedAt: Date.now(),
+      };
+      setHistory(prev => {
+        const updated = [newEntry, ...prev].slice(0, 100);
+        return updated;
+      });
     }
-  };
+  }, [currentTrack, isPlaying, pauseNow, playUrlNow]);
 
   const handleNext = () => {
     if (!currentTrack) return;
@@ -189,12 +261,14 @@ export default function App() {
 
   const handleCreateSubmit = async (params: CreateSongParams) => {
     setIsGenerating(true);
+    setGenerationStep(0);
     try {
       // Ensure the analyser exists during the user gesture that starts generation,
       // so auto-play can reliably drive visualizers when generation completes.
       await ensureAudioGraph();
 
-      // 1. Generate Metadata
+      // Step 1: Analyzing prompt
+      setGenerationStep(0);
       const metadata = await generateSongMetadata(
         params.prompt,
         params.isInstrumental,
@@ -203,49 +277,43 @@ export default function App() {
         params.customTitle
       );
 
+      // Step 2: Composing melody
+      setGenerationStep(1);
       let audioUrl = "";
-      let selectedTrackString = "";
 
       if (params.isCustom) {
-        // Real Generation via ElevenLabs
+        // Step 3: Generating vocals (or instrumental)
+        setGenerationStep(2);
         const blob = await generateElevenLabsTrack(params);
         audioUrl = URL.createObjectURL(blob);
-        selectedTrackString = "Custom Generated Track";
       } else {
-        // Mock selection for Simple Mode (or could use 11Labs too if desired, but sticking to plan)
-        // Actually, let's use 11Labs for everything if we can, but per plan "in the custom mode we use eleveblabs"
-        // So preserve mock for simple mode if desired, BUT the user request said "integrate a full ElevenLabs api music generation system... but in the custom mode we use eleveblabs music generation"
-        // Let's assume Simple mode stays as is (mock) for now unless user specified otherwise, or use 11Labs for custom. 
-        // Wait, user said "integrate a full ElevenLabs api music generation system we will keep the url system intact. but in the custom mode we use eleveblabs music generation."
-        // This implies Simple might still stick to URLs? Or maybe Simple should also use it?
-        // Let's adhere strictly: "in the custom mode we use eleveblabs".
-
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Mock delay
+        // Mock selection for Simple Mode
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        setGenerationStep(2);
         const selectedTrack = selectTrackForMetadata(
           metadata,
           TRACKS,
           generatedTracks.map(t => t.id)
         );
         audioUrl = selectedTrack.url;
-        selectedTrackString = selectedTrack.title;
       }
 
-      // 3. Generate Album Art (Async or just placeholder)
+      // Step 4: Mastering audio / generating album art
+      setGenerationStep(3);
       const coverUrl = await generateAlbumArt(metadata.description);
-
-      // Check if coverUrl is base64 (generated) or URL
       const isBase64Cover = coverUrl.startsWith('data:');
 
-      // 4. Create new Track
+      // Step 5: Finalizing
+      setGenerationStep(4);
       const newTrackId = `gen-${Date.now()}`;
       const newTrack: Track = {
         id: newTrackId,
         title: metadata.title,
         artist: 'AI Composer',
-        url: audioUrl, // Use the generated or selected URL
-        audioUrl: audioUrl, // Duplicate for safety
-        genre: metadata.styleTags?.[0] as any || 'Other', // Approximate genre
-        duration: params.isCustom ? params.durationSeconds : 180, // Use selected duration for ElevenLabs
+        url: audioUrl,
+        audioUrl: audioUrl,
+        genre: metadata.styleTags?.[0] as any || 'Other',
+        duration: params.isCustom ? params.durationSeconds : 180,
         coverUrl: coverUrl,
         lyrics: metadata.lyrics,
         styleTags: metadata.styleTags,
@@ -254,45 +322,40 @@ export default function App() {
         createdAt: Date.now()
       };
 
-      // 5. Save to Vercel Blob storage
+      // Save to Vercel Blob storage
       try {
         const saveParams = trackToSaveParams(newTrack, isBase64Cover ? coverUrl : undefined);
         const savedSong = await saveSong(saveParams);
-        // Update track with blob-stored cover URL if it was uploaded
         if (savedSong.coverUrl) {
           newTrack.coverUrl = savedSong.coverUrl;
         }
         console.log('Song saved to Vercel Blob:', savedSong);
       } catch (saveError) {
         console.error('Failed to save to Blob storage, keeping in local state:', saveError);
-        // Still continue - song will work locally even if cloud save fails
       }
 
       setGeneratedTracks(prev => [newTrack, ...prev]);
       setCurrentTrack(newTrack);
       setIsPlaying(true);
-      setActiveTab('library');
+      // Stay on create tab - don't navigate away!
 
     } catch (error) {
       console.error("Generation failed", error);
       
-      // Provide more helpful error messages
       let errorMessage = "Failed to create song. Please try again.";
       
       if (error instanceof Error) {
-        // Check if it's a connection error
         if (error.message.includes("Cannot connect to the API server") || 
             error.message.includes("connection refused") ||
             error.message.includes("ERR_CONNECTION_REFUSED") ||
             error.message.includes("Failed to fetch")) {
           errorMessage = "Cannot connect to the API server. Make sure:\n\n1. The dev server is running (npm run dev or npx vercel dev)\n2. You have ELEVENLABS_API_KEY in your .env.local file\n3. The server is accessible at http://localhost:3000";
         } 
-        // Check if it's an API key error
         else if (error.message.includes("Invalid API key") || error.message.includes("401")) {
-          errorMessage = error.message || "Invalid API key error. Please check your ELEVENLABS_API_KEY environment variable. See README for setup instructions.";
+          errorMessage = error.message || "Invalid API key error. Please check your ELEVENLABS_API_KEY environment variable.";
         } 
         else if (error.message.includes("Server configuration error") || error.message.includes("MISSING_API_KEY")) {
-          errorMessage = "Server configuration error: ELEVENLABS_API_KEY is not set. Please add it to your .env.local file or Vercel environment variables.";
+          errorMessage = "Server configuration error: ELEVENLABS_API_KEY is not set.";
         } 
         else {
           errorMessage = error.message || errorMessage;
@@ -302,8 +365,198 @@ export default function App() {
       alert(errorMessage);
     } finally {
       setIsGenerating(false);
+      setGenerationStep(0);
     }
   };
+
+  const handleDeleteTrack = async (trackId: string) => {
+    try {
+      // Remove from state immediately for responsiveness
+      setGeneratedTracks(prev => prev.filter(t => t.id !== trackId));
+      
+      // If it's the current track, stop playing
+      if (currentTrack?.id === trackId) {
+        setCurrentTrack(null);
+        setIsPlaying(false);
+      }
+
+      // Delete from storage
+      await deleteSong(trackId);
+      
+      // Also remove from localStorage backup
+      try {
+        const localSongs = localStorage.getItem('dlm_gen_songs');
+        if (localSongs) {
+          const songs = JSON.parse(localSongs);
+          const filtered = songs.filter((s: any) => s.id !== trackId);
+          localStorage.setItem('dlm_gen_songs', JSON.stringify(filtered));
+        }
+      } catch (e) {
+        console.error('Failed to remove from localStorage:', e);
+      }
+    } catch (error) {
+      console.error('Failed to delete track:', error);
+    }
+  };
+
+  // Queue management
+  const handleAddToQueue = useCallback((track: Track) => {
+    setQueue(prev => [...prev, { track, addedAt: Date.now() }]);
+    // Show a toast notification (simple alert for now)
+    console.log(`Added "${track.title}" to queue`);
+  }, []);
+
+  // Play next from queue when current track ends (enhanced handleNext)
+  const handleNextWithQueue = useCallback(() => {
+    if (queue.length > 0) {
+      const [nextItem, ...rest] = queue;
+      setQueue(rest);
+      setCurrentTrack(nextItem.track);
+      void playUrlNow(nextItem.track.url);
+      setIsPlaying(true);
+      return;
+    }
+    // Fall back to normal next behavior
+    handleNext();
+  }, [queue, playUrlNow, handleNext]);
+
+  // Playlist management
+  const handleCreatePlaylist = useCallback((name: string, initialTrack?: Track) => {
+    const newPlaylist: Playlist = {
+      id: `playlist-${Date.now()}`,
+      name,
+      trackIds: initialTrack ? [initialTrack.id] : [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setPlaylists(prev => [...prev, newPlaylist]);
+    console.log(`Created playlist "${name}"`);
+  }, []);
+
+  const handleAddToPlaylist = useCallback((track: Track, playlistId: string) => {
+    setPlaylists(prev => prev.map(p => {
+      if (p.id === playlistId && !p.trackIds.includes(track.id)) {
+        return { ...p, trackIds: [...p.trackIds, track.id], updatedAt: Date.now() };
+      }
+      return p;
+    }));
+    const playlist = playlists.find(p => p.id === playlistId);
+    console.log(`Added "${track.title}" to "${playlist?.name || 'playlist'}"`);
+  }, [playlists]);
+
+  const handleDeletePlaylist = useCallback((playlistId: string) => {
+    setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+    console.log(`Deleted playlist`);
+  }, []);
+
+  const handleUpdatePlaylist = useCallback((playlistId: string, updates: Partial<Playlist>) => {
+    setPlaylists(prev => prev.map(p => {
+      if (p.id === playlistId) {
+        return { ...p, ...updates, updatedAt: Date.now() };
+      }
+      return p;
+    }));
+  }, []);
+
+  // Workspace management
+  const handleCreateWorkspace = useCallback((name: string, initialTrack?: Track) => {
+    const newWorkspace: Workspace = {
+      id: `workspace-${Date.now()}`,
+      name,
+      trackIds: initialTrack ? [initialTrack.id] : [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setWorkspaces(prev => [...prev, newWorkspace]);
+    console.log(`Created workspace "${name}"`);
+  }, []);
+
+  const handleMoveToWorkspace = useCallback((track: Track, workspaceId: string) => {
+    setWorkspaces(prev => prev.map(w => {
+      // Remove from all workspaces first
+      const filtered = w.trackIds.filter(id => id !== track.id);
+      // Add to target workspace
+      if (w.id === workspaceId) {
+        return { ...w, trackIds: [...filtered, track.id], updatedAt: Date.now() };
+      }
+      return { ...w, trackIds: filtered, updatedAt: Date.now() };
+    }));
+    const workspace = workspaces.find(w => w.id === workspaceId);
+    console.log(`Moved "${track.title}" to "${workspace?.name || 'workspace'}"`);
+  }, [workspaces]);
+
+  const handleDeleteWorkspace = useCallback((workspaceId: string) => {
+    // Don't delete default workspace
+    if (workspaceId === 'workspace-default') return;
+    
+    // Move tracks to default workspace
+    setWorkspaces(prev => {
+      const toDelete = prev.find(w => w.id === workspaceId);
+      if (!toDelete) return prev;
+      
+      return prev
+        .filter(w => w.id !== workspaceId)
+        .map(w => {
+          if (w.id === 'workspace-default') {
+            return {
+              ...w,
+              trackIds: [...w.trackIds, ...toDelete.trackIds],
+              updatedAt: Date.now(),
+            };
+          }
+          return w;
+        });
+    });
+    console.log(`Deleted workspace`);
+  }, []);
+
+  const handleUpdateWorkspace = useCallback((workspaceId: string, updates: Partial<Workspace>) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id === workspaceId) {
+        return { ...w, ...updates, updatedAt: Date.now() };
+      }
+      return w;
+    }));
+  }, []);
+
+  // Liked songs management
+  const handleToggleLike = useCallback((track: Track) => {
+    setLikedTrackIds(prev => {
+      if (prev.includes(track.id)) {
+        console.log(`Unliked "${track.title}"`);
+        return prev.filter(id => id !== track.id);
+      } else {
+        console.log(`Liked "${track.title}"`);
+        return [...prev, track.id];
+      }
+    });
+  }, []);
+
+  // History management
+  const handleClearHistory = useCallback(() => {
+    setHistory([]);
+    console.log('History cleared');
+  }, []);
+
+  // Download handler
+  const handleDownload = useCallback(async (track: Track, format: 'mp3' | 'wav') => {
+    try {
+      await downloadTrack(track, format);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download track. Please try again.');
+    }
+  }, []);
+
+  // Share handler
+  const handleShare = useCallback(async (track: Track) => {
+    await shareTrack(track);
+  }, []);
+
+  // Song details modal
+  const handleShowDetails = useCallback((track: Track) => {
+    setDetailsModalTrack(track);
+  }, []);
 
   return (
     <div className="flex h-screen bg-black text-white overflow-hidden font-sans">
@@ -313,6 +566,9 @@ export default function App() {
         isOpen={sidebarOpen}
         isPlaying={isPlaying}
         analyser={analyser}
+        playlists={playlists}
+        onCreatePlaylist={handleCreatePlaylist}
+        onDeletePlaylist={handleDeletePlaylist}
       />
 
       <main className="flex-1 flex flex-col relative min-w-0 transition-all duration-300">
@@ -390,23 +646,62 @@ export default function App() {
             </div>
           )}
 
-          <div className="p-6 md:p-8 pt-0">
-            {activeTab === 'create' ? (
-              <div className="max-w-2xl mx-auto h-[calc(100vh-120px)]">
-                <CreateForm onSubmit={handleCreateSubmit} isGenerating={isGenerating} />
-              </div>
-            ) : (
-              <>
-                <h2 className="text-2xl font-bold mb-6 capitalize">{activeTab.replace('-', ' ')} Tracks</h2>
-                <TrackList
-                  tracks={activeTab === 'library' ? [...generatedTracks, ...filteredTracks] : filteredTracks}
-                  currentTrackId={currentTrack?.id}
-                  isPlaying={isPlaying}
-                  onPlay={handlePlay}
-                />
-              </>
-            )}
-          </div>
+          {activeTab === 'create' ? (
+            <div className="p-6 md:p-8 pt-4 h-full">
+              <CreateStudio
+                generatedTracks={generatedTracks}
+                onSubmit={handleCreateSubmit}
+                isGenerating={isGenerating}
+                generationStep={generationStep}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                onPlay={handlePlay}
+                onDelete={handleDeleteTrack}
+                onAddToQueue={handleAddToQueue}
+                onAddToPlaylist={handleAddToPlaylist}
+                onCreatePlaylist={handleCreatePlaylist}
+                onShowDetails={handleShowDetails}
+                onDownload={handleDownload}
+                onShare={handleShare}
+                playlists={playlists}
+              />
+            </div>
+          ) : activeTab === 'library' ? (
+            <LibraryView
+              tracks={[...generatedTracks, ...TRACKS]}
+              currentTrackId={currentTrack?.id}
+              isPlaying={isPlaying}
+              playlists={playlists}
+              workspaces={workspaces}
+              history={history}
+              likedTrackIds={likedTrackIds}
+              onPlay={handlePlay}
+              onDelete={handleDeleteTrack}
+              onAddToPlaylist={handleAddToPlaylist}
+              onCreatePlaylist={handleCreatePlaylist}
+              onDeletePlaylist={handleDeletePlaylist}
+              onUpdatePlaylist={handleUpdatePlaylist}
+              onMoveToWorkspace={handleMoveToWorkspace}
+              onCreateWorkspace={handleCreateWorkspace}
+              onDeleteWorkspace={handleDeleteWorkspace}
+              onUpdateWorkspace={handleUpdateWorkspace}
+              onToggleLike={handleToggleLike}
+              onAddToQueue={handleAddToQueue}
+              onShowDetails={handleShowDetails}
+              onDownload={handleDownload}
+              onShare={handleShare}
+            />
+          ) : activeTab !== 'home' && (
+            <div className="p-6 md:p-8 pt-0">
+              <h2 className="text-2xl font-bold mb-6 capitalize">{activeTab.replace('-', ' ')} Tracks</h2>
+              <TrackList
+                tracks={filteredTracks}
+                currentTrackId={currentTrack?.id}
+                isPlaying={isPlaying}
+                onPlay={handlePlay}
+              />
+            </div>
+          )}
         </div>
       </main>
 
@@ -423,11 +718,25 @@ export default function App() {
             setIsPlaying(true);
           }
         }}
-        onNext={handleNext}
+        onNext={handleNextWithQueue}
         onPrev={handlePrev}
-        onEnded={handleNext}
+        onEnded={handleNextWithQueue}
         audioRef={audioRef}
       />
+
+      {/* Song Details Modal */}
+      {detailsModalTrack && (
+        <SongDetailsModal
+          track={detailsModalTrack}
+          isOpen={!!detailsModalTrack}
+          onClose={() => setDetailsModalTrack(null)}
+          isCurrent={currentTrack?.id === detailsModalTrack.id}
+          isPlaying={isPlaying && currentTrack?.id === detailsModalTrack.id}
+          onPlay={() => handlePlay(detailsModalTrack)}
+          onDownload={() => handleDownload(detailsModalTrack, 'mp3')}
+          onShare={() => handleShare(detailsModalTrack)}
+        />
+      )}
     </div>
   );
 }

@@ -60,6 +60,40 @@ function formatLyrics(lyrics: string): string {
 }
 
 /**
+ * Get creativity descriptor based on slider value (0-100)
+ */
+function getCreativityDescriptor(creativity: number): string {
+    if (creativity < 20) {
+        return 'conventional, familiar, mainstream sound';
+    } else if (creativity < 40) {
+        return 'accessible, slightly unconventional';
+    } else if (creativity < 60) {
+        return ''; // Neutral, let the model decide
+    } else if (creativity < 80) {
+        return 'creative, unique arrangement, fresh sound';
+    } else {
+        return 'experimental, avant-garde, unconventional, innovative';
+    }
+}
+
+/**
+ * Get energy descriptor based on slider value (0-100)
+ */
+function getEnergyDescriptor(energy: number): string {
+    if (energy < 20) {
+        return 'very chill, relaxed, mellow, downtempo, calm';
+    } else if (energy < 40) {
+        return 'laid-back, easygoing, smooth';
+    } else if (energy < 60) {
+        return ''; // Neutral energy
+    } else if (energy < 80) {
+        return 'upbeat, energetic, lively, dynamic';
+    } else {
+        return 'high energy, intense, powerful, driving, explosive';
+    }
+}
+
+/**
  * Build the full prompt for ElevenLabs music generation
  * Following best practices from ElevenLabs documentation
  */
@@ -73,7 +107,19 @@ function buildElevenLabsPrompt(params: CreateSongParams): string {
         parts.push(params.prompt);
     }
     
-    // 2. Add vocal descriptors (crucial for getting vocals!)
+    // 2. Add creativity descriptor based on slider
+    const creativityDesc = getCreativityDescriptor(params.creativity ?? 50);
+    if (creativityDesc) {
+        parts.push(creativityDesc);
+    }
+    
+    // 3. Add energy descriptor based on slider
+    const energyDesc = getEnergyDescriptor(params.energy ?? 50);
+    if (energyDesc) {
+        parts.push(energyDesc);
+    }
+    
+    // 4. Add vocal descriptors (crucial for getting vocals!)
     if (!params.isInstrumental) {
         const vocalDesc = getVocalDescriptor(params.vocalStyle);
         if (vocalDesc) {
@@ -84,17 +130,17 @@ function buildElevenLabsPrompt(params: CreateSongParams): string {
         }
     }
     
-    // 3. Add tempo/BPM if specified
+    // 5. Add tempo/BPM if specified
     if (params.bpm) {
         parts.push(`${params.bpm} BPM`);
     }
     
-    // 4. Add key signature if specified
+    // 6. Add key signature if specified
     if (params.keySignature) {
         parts.push(`in ${params.keySignature}`);
     }
     
-    // 5. Handle instrumental vs vocal track
+    // 7. Handle instrumental vs vocal track
     if (params.isInstrumental) {
         parts.push('instrumental only, no vocals');
     } else if (params.customLyrics && params.customLyrics.trim()) {
@@ -103,9 +149,14 @@ function buildElevenLabsPrompt(params: CreateSongParams): string {
         parts.push(`\n\nLyrics:\n${formattedLyrics}`);
     }
     
-    // 6. Add title context if provided
+    // 8. Add title context if provided
     if (params.customTitle) {
         parts.unshift(`Song: "${params.customTitle}"`);
+    }
+    
+    // 9. Add exclusions (negative prompting)
+    if (params.excludeStyles && params.excludeStyles.trim()) {
+        parts.push(`\n\nAvoid: ${params.excludeStyles}`);
     }
     
     return parts.join(', ').replace(/, \n/g, '\n');

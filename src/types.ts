@@ -85,4 +85,67 @@ export interface CreateSongParams {
   lyrics?: string;
   style?: string;
   title?: string;
+  // Advanced slider controls (0-100)
+  creativity: number; // 0 = conventional, 100 = experimental
+  energy: number; // 0 = chill/mellow, 100 = energetic/intense
+  excludeStyles?: string; // Negative prompting - styles to avoid
+  // Language for lyrics
+  language?: string;
+}
+
+// Playlist management
+export interface Playlist {
+  id: string;
+  name: string;
+  description?: string;
+  trackIds: string[];
+  coverUrl?: string;
+  isPublic?: boolean;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+// Workspace - organizational folder for songs
+export interface Workspace {
+  id: string;
+  name: string;
+  description?: string;
+  coverUrl?: string;
+  trackIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+// History entry for recently played tracks
+export interface HistoryEntry {
+  trackId: string;
+  playedAt: number;
+}
+
+// Library data structure for persistence
+export interface LibraryData {
+  playlists: Playlist[];
+  workspaces: Workspace[];
+  history: HistoryEntry[];
+  likedTrackIds: string[];
+}
+
+// Queue item for playback queue
+export interface QueueItem {
+  track: Track;
+  addedAt: number;
+}
+
+// Context menu action handlers
+export interface SongContextActions {
+  onAddToQueue?: (track: Track) => void;
+  onAddToPlaylist?: (track: Track, playlistId: string) => void;
+  onCreatePlaylist?: (name: string, track?: Track) => void;
+  onMoveToWorkspace?: (track: Track, workspaceId: string) => void;
+  onCreateWorkspace?: (name: string, track?: Track) => void;
+  onLikeToggle?: (track: Track) => void;
+  onShowDetails?: (track: Track) => void;
+  onDownload?: (track: Track, format: 'mp3' | 'wav') => void;
+  onShare?: (track: Track) => void;
+  onDelete?: (trackId: string) => void;
 }

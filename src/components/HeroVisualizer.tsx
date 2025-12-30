@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { FontLoader, type Font } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
-import helvetikerBoldFont from 'three/examples/fonts/helvetiker_bold.typeface.json?raw';
+import helvetikerBoldFont from 'three/examples/fonts/helvetiker_bold.typeface.json';
 
 interface HeroVisualizerProps {
     isPlaying: boolean;
@@ -67,6 +67,8 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
     const sceneRef = useRef<SceneState | null>(null);
     const fontRef = useRef<Font | null>(null);
     const pendingTitleRef = useRef<string | undefined>(trackTitle);
+    const mountedRef = useRef(false);
+    const animationRunningRef = useRef(true);
 
     const updateTextMesh = useCallback((title?: string) => {
         const state = sceneRef.current;
@@ -125,7 +127,10 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
 
 
     const initScene = useCallback(() => {
-        if (!containerRef.current || sceneRef.current) return;
+        // Prevent double initialization from React StrictMode
+        if (!containerRef.current || sceneRef.current || mountedRef.current) return;
+        mountedRef.current = true;
+        animationRunningRef.current = true;
 
         const container = containerRef.current;
         const width = container.clientWidth;
@@ -173,8 +178,8 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
 
         const renderer = new THREE.WebGLRenderer({
             antialias: true,
-            alpha: true,
-            powerPreference: 'high-performance'
+            alpha: true
+            // Removed powerPreference to ensure better compatibility
         });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -383,32 +388,46 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
 
         const handleContextLost = (e: Event) => {
             e.preventDefault?.();
-            console.warn('HeroVisualizer WebGL context lost; recreating renderer.');
-            if (!sceneRef.current) return;
-            cancelAnimationFrame(sceneRef.current.animationId);
-            try {
-                disposeObject3D(sceneRef.current.scene);
-                sceneRef.current.scene.clear();
-                sceneRef.current.renderer.renderLists?.dispose?.();
-                sceneRef.current.renderer.dispose();
-            } catch {
-                // ignore
+            console.warn('HeroVisualizer WebGL context lost; will recreate after delay.');
+            
+            // Cancel current animation
+            animationRunningRef.current = false;
+            if (sceneRef.current) {
+                cancelAnimationFrame(sceneRef.current.animationId);
             }
-            if (containerRef.current && sceneRef.current.renderer.domElement) {
+            
+            // Schedule recreation with delay to allow GPU recovery
+            setTimeout(() => {
+                if (!sceneRef.current) return;
                 try {
-                    containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                    sceneRef.current.resizeObserver?.disconnect();
+                    if (sceneRef.current.windowResizeHandler) {
+                        window.removeEventListener('resize', sceneRef.current.windowResizeHandler);
+                    }
+                    disposeObject3D(sceneRef.current.scene);
+                    sceneRef.current.scene.clear();
+                    sceneRef.current.renderer.renderLists?.dispose?.();
+                    sceneRef.current.renderer.dispose();
                 } catch {
                     // ignore
                 }
-            }
-            sceneRef.current = null;
-            requestAnimationFrame(() => initScene());
+                if (containerRef.current && sceneRef.current.renderer.domElement) {
+                    try {
+                        containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                    } catch {
+                        // ignore
+                    }
+                }
+                sceneRef.current = null;
+                mountedRef.current = false;
+                requestAnimationFrame(() => initScene());
+            }, 100);
         };
 
         renderer.domElement.addEventListener('webglcontextlost', handleContextLost as any, false);
 
         try {
-            const font = new FontLoader().parse(JSON.parse(helvetikerBoldFont));
+            const font = new FontLoader().parse(helvetikerBoldFont as any);
             fontRef.current = font;
             if (sceneRef.current) {
                 sceneRef.current.font = font;
@@ -446,32 +465,64 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
             sceneRef.current.windowResizeHandler = handleResize;
         }
 
-        const clock = new THREE.Clock();
+        const clock = new THREE.Clock(true);
+        clock.start();
         let smoothBass = 0, smoothMid = 0, smoothHigh = 0;
+        let lastTime = performance.now();
 
-        const animate = () => {
-            if (!sceneRef.current) return;
+        // Do an initial render immediately so something is visible
+        renderer.render(scene, camera);
+
+        const animate = (timestamp: number) => {
+            // Always schedule next frame FIRST to ensure loop continues
+            if (animationRunningRef.current && sceneRef.current) {
+                sceneRef.current.animationId = requestAnimationFrame(animate);
+            } else {
+                return; // Stop if not running
+            }
+            
+            const state = sceneRef.current;
+            if (!state) return;
+
+            // Skip rendering when tab is not visible to save resources
+            if (document.hidden) {
+                return;
+            }
+            
+            const now = timestamp || performance.now();
+            const delta = Math.max(0.016, Math.min((now - lastTime) / 1000, 0.1)); // Ensure minimum delta
+            lastTime = now;
+            const time = clock.getElapsedTime(); // Time since animation started
+
             try {
-                const {
-                    camera, renderer, analyser, dataArray,
-                    starSystem, nebulaSystem, textMesh, warpTrails, trailVelocities,
-                    aurora, haloSystem
-                } = sceneRef.current;
+                // Use direct references from scene state
+                const currentScene = state.scene;
+                const currentCamera = state.camera;
+                const currentRenderer = state.renderer;
+                const currentAnalyser = state.analyser;
+                const currentDataArray = state.dataArray;
+                const currentStarSystem = state.starSystem;
+                const currentNebulaSystem = state.nebulaSystem;
+                const currentTextMesh = state.textMesh;
+                const currentWarpTrails = state.warpTrails;
+                const currentTrailVelocities = state.trailVelocities;
+                const currentAurora = state.aurora;
+                const currentHaloSystem = state.haloSystem;
+                const currentIsPlaying = state.isPlayingRef;
 
-                if (!textMesh && fontRef.current) {
+
+
+                if (!currentTextMesh && fontRef.current) {
                     updateTextMesh(pendingTitleRef.current);
                 }
 
-                const delta = clock.getDelta();
-                const time = clock.getElapsedTime();
-
                 let bass = 0, mid = 0, high = 0;
-                const hasAnalyser = sceneRef.current.isPlayingRef && analyser && dataArray && dataArray.length > 0;
+                const hasAnalyser = currentIsPlaying && currentAnalyser && currentDataArray && currentDataArray.length > 0;
                 if (hasAnalyser) {
-                    analyser.getByteFrequencyData(dataArray);
-                    const bufferLength = dataArray.length;
+                    currentAnalyser.getByteFrequencyData(currentDataArray);
+                    const bufferLength = currentDataArray.length;
                     // Map FFT bins to perceptual bands instead of simple percentages
-                    const nyquist = analyser.context.sampleRate / 2;
+                    const nyquist = currentAnalyser.context.sampleRate / 2;
                     const freqToIndex = (freq: number) => Math.min(bufferLength, Math.max(1, Math.floor((freq / nyquist) * bufferLength)));
 
                     const bassStart = Math.max(0, freqToIndex(20) - 1);
@@ -479,9 +530,9 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                     const midEnd = Math.max(bassEnd + 1, freqToIndex(2000));
                     const highEnd = Math.max(midEnd + 1, freqToIndex(8000));
 
-                    for (let i = bassStart; i < bassEnd && i < bufferLength; i++) bass += dataArray[i];
-                    for (let i = bassEnd; i < midEnd && i < bufferLength; i++) mid += dataArray[i];
-                    for (let i = midEnd; i < highEnd && i < bufferLength; i++) high += dataArray[i];
+                    for (let i = bassStart; i < bassEnd && i < bufferLength; i++) bass += currentDataArray[i];
+                    for (let i = bassEnd; i < midEnd && i < bufferLength; i++) mid += currentDataArray[i];
+                    for (let i = midEnd; i < highEnd && i < bufferLength; i++) high += currentDataArray[i];
 
                     const bassBins = Math.max(1, Math.min(bufferLength, bassEnd) - bassStart);
                     const midBins = Math.max(1, Math.min(bufferLength, midEnd) - bassEnd);
@@ -490,24 +541,26 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                     bass = bass / bassBins / 255;
                     mid = mid / midBins / 255;
                     high = high / highBins / 255;
-                } else if (sceneRef.current.isPlayingRef) {
+                } else if (currentIsPlaying) {
                     bass = 0.24 + Math.sin(time * 2.6) * 0.18;
                     mid = 0.22 + Math.cos(time * 1.8) * 0.14;
                     high = 0.18 + Math.sin(time * 3.8) * 0.1;
                 } else {
-                    bass = 0.2 + Math.sin(time * 1.6) * 0.12;
-                    mid = 0.18 + Math.cos(time * 1.2) * 0.1;
-                    high = 0.18 + Math.sin(time * 1.8) * 0.09;
+                    // Idle animation - significantly boosted for visibility
+                    bass = 0.45 + Math.sin(time * 2.5) * 0.25;
+                    mid = 0.40 + Math.cos(time * 2.0) * 0.22;
+                    high = 0.35 + Math.sin(time * 2.8) * 0.18;
                 }
 
-                smoothBass += (bass - smoothBass) * 0.12;
-                smoothMid += (mid - smoothMid) * 0.12;
-                smoothHigh += (high - smoothHigh) * 0.12;
+                // Faster smoothing for more responsive animation
+                smoothBass += (bass - smoothBass) * 0.3;
+                smoothMid += (mid - smoothMid) * 0.3;
+                smoothHigh += (high - smoothHigh) * 0.3;
 
                 uniforms.bass.value = smoothBass;
 
-                const warpSpeed = 32 + smoothBass * 380;
-                const starPositions = starSystem.geometry.attributes.position.array as Float32Array;
+                const warpSpeed = 120 + smoothBass * 600; // Increased base speed for more visible movement
+                const starPositions = currentStarSystem.geometry.attributes.position.array as Float32Array;
 
                 for (let i = 0; i < starPositions.length; i += 3) {
                     starPositions[i + 2] += warpSpeed * delta;
@@ -519,17 +572,17 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                         starPositions[i + 1] = r * Math.sin(theta);
                     }
                 }
-                starSystem.geometry.attributes.position.needsUpdate = true;
+                currentStarSystem.geometry.attributes.position.needsUpdate = true;
 
-                const starMat = starSystem.material as THREE.PointsMaterial;
+                const starMat = currentStarSystem.material as THREE.PointsMaterial;
                 starMat.size = 0.9 + smoothHigh * 1.8;
                 starMat.opacity = 0.75 + smoothMid * 0.25;
 
-                if (warpTrails && trailVelocities) {
-                    const trailArr = warpTrails.geometry.attributes.position.array as Float32Array;
-                    for (let i = 0; i < trailVelocities.length; i++) {
+                if (currentWarpTrails && currentTrailVelocities) {
+                    const trailArr = currentWarpTrails.geometry.attributes.position.array as Float32Array;
+                    for (let i = 0; i < currentTrailVelocities.length; i++) {
                         const i6 = i * 6;
-                        const velocity = (trailVelocities[i] + smoothBass * 500) * delta;
+                        const velocity = (currentTrailVelocities[i] + smoothBass * 500) * delta;
                         trailArr[i6 + 2] += velocity;
                         trailArr[i6 + 5] += velocity;
                         if (trailArr[i6 + 2] > 200) {
@@ -545,56 +598,54 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                             trailArr[i6 + 5] = z + len;
                         }
                     }
-                    warpTrails.geometry.attributes.position.needsUpdate = true;
-                    const mat = warpTrails.material as THREE.LineBasicMaterial;
+                    currentWarpTrails.geometry.attributes.position.needsUpdate = true;
+                    const mat = currentWarpTrails.material as THREE.LineBasicMaterial;
                     mat.opacity = 0.28 + smoothBass * 0.4;
                 }
 
-                nebulaSystem.rotation.z += 0.04 * delta;
-                const nebulaMat = nebulaSystem.material as THREE.PointsMaterial;
+                currentNebulaSystem.rotation.z += 0.04 * delta;
+                const nebulaMat = currentNebulaSystem.material as THREE.PointsMaterial;
                 nebulaMat.opacity = 0.22 + smoothMid * 0.35;
                 nebulaMat.color.setHSL(0.02 + smoothMid * 0.08, 0.78, 0.55);
 
-                if (haloSystem) {
-                    haloSystem.rotation.z += 0.15 * delta;
-                    const haloMat = haloSystem.material as THREE.PointsMaterial;
+                if (currentHaloSystem) {
+                    currentHaloSystem.rotation.z += 0.15 * delta;
+                    const haloMat = currentHaloSystem.material as THREE.PointsMaterial;
                     haloMat.size = 0.7 + smoothHigh * 1.4;
                     haloMat.opacity = 0.35 + smoothMid * 0.25;
                 }
 
-                if (aurora) {
-                    aurora.rotation.z += 0.05 * delta;
-                    aurora.scale.setScalar(1 + smoothMid * 0.3);
-                    const auroraMat = aurora.material as THREE.MeshBasicMaterial;
+                if (currentAurora) {
+                    currentAurora.rotation.z += 0.05 * delta;
+                    currentAurora.scale.setScalar(1 + smoothMid * 0.3);
+                    const auroraMat = currentAurora.material as THREE.MeshBasicMaterial;
                     auroraMat.opacity = 0.08 + smoothMid * 0.35;
                     auroraMat.color.setHSL(0.015 + smoothHigh * 0.05, 0.9, 0.55);
                 }
 
-                if (textMesh) {
-                    textMesh.scale.setScalar(1 + smoothBass * 0.25);
-                    textMesh.position.y = -2 + Math.sin(time * 0.6) * 0.8 + smoothMid * 2.4;
-                    textMesh.rotation.y = Math.sin(time * 0.35) * 0.08;
-                    const mat = textMesh.material as THREE.MeshStandardMaterial;
-                    mat.emissiveIntensity = 0.7 + smoothBass * 1.6;
-                    mat.color.setHSL(0.02 + smoothHigh * 0.1, 0.75, 0.72);
+                if (currentTextMesh) {
+                    currentTextMesh.scale.setScalar(1 + smoothBass * 0.35);
+                    currentTextMesh.position.y = -2 + Math.sin(time * 1.2) * 1.5 + smoothMid * 3;
+                    currentTextMesh.rotation.y = Math.sin(time * 0.5) * 0.12;
+                    const mat = currentTextMesh.material as THREE.MeshStandardMaterial;
+                    mat.emissiveIntensity = 0.8 + smoothBass * 2;
+                    mat.color.setHSL(0.02 + smoothHigh * 0.12, 0.8, 0.72);
                 }
 
-                camera.position.x = Math.sin(time * 0.3) * (5 + smoothMid * 6);
-                camera.position.y = Math.cos(time * 0.22) * (4 + smoothBass * 4);
-                camera.position.z = 110 - smoothBass * 12;
-                camera.lookAt(0, 0, 40 + smoothBass * 20);
+                // More dynamic camera movement
+                currentCamera.position.x = Math.sin(time * 0.5) * (8 + smoothMid * 10);
+                currentCamera.position.y = Math.cos(time * 0.4) * (6 + smoothBass * 6);
+                currentCamera.position.z = 110 - smoothBass * 18;
+                currentCamera.lookAt(0, 0, 40 + smoothBass * 25);
 
-                renderer.render(scene, camera);
+                currentRenderer.render(currentScene, currentCamera);
             } catch (e) {
                 console.warn('HeroVisualizer animation error:', e);
-            } finally {
-                if (sceneRef.current) {
-                    sceneRef.current.animationId = requestAnimationFrame(animate);
-                }
             }
         };
 
-        animate();
+        // Start the animation loop
+        sceneRef.current.animationId = requestAnimationFrame(animate);
 
     }, [updateTextMesh]);
 
@@ -626,6 +677,9 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
     useEffect(() => {
         initScene();
         return () => {
+            // Stop animation loop first
+            animationRunningRef.current = false;
+            
             if (sceneRef.current) {
                 cancelAnimationFrame(sceneRef.current.animationId);
                 sceneRef.current.resizeObserver?.disconnect();
@@ -641,11 +695,18 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                     console.warn('HeroVisualizer cleanup failed:', e);
                 } finally {
                     if (containerRef.current && sceneRef.current.renderer.domElement) {
-                        containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                        try {
+                            containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                        } catch {
+                            // Element may already be removed
+                        }
                     }
                 }
                 sceneRef.current = null;
             }
+            
+            // Reset mount tracking for potential remount
+            mountedRef.current = false;
         };
     }, [initScene]);
 

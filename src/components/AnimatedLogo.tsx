@@ -50,9 +50,14 @@ interface SceneState {
 export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<SceneState | null>(null);
+    const mountedRef = useRef(false);
+    const animationRunningRef = useRef(true);
 
     const initScene = useCallback(() => {
-        if (!containerRef.current || sceneRef.current) return;
+        // Prevent double initialization from React StrictMode
+        if (!containerRef.current || sceneRef.current || mountedRef.current) return;
+        mountedRef.current = true;
+        animationRunningRef.current = true;
 
         const container = containerRef.current;
         const size = 40; // Slightly larger for more detail
@@ -64,11 +69,11 @@ export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser 
         const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
         camera.position.z = 5;
 
-        // Renderer
+        // Renderer - use low-power mode to avoid competing with HeroVisualizer
         const renderer = new THREE.WebGLRenderer({
-            antialias: true,
+            antialias: false,
             alpha: true,
-            powerPreference: 'high-performance'
+            powerPreference: 'low-power'
         });
         renderer.setSize(size, size);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -157,8 +162,8 @@ export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser 
 
         scene.add(logoGroup);
 
-        // Create particles around the logo
-        const particleCount = 50;
+        // Create particles around the logo - reduced count for better performance
+        const particleCount = 30;
         const particleGeo = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
@@ -210,33 +215,46 @@ export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser 
             dataArray: null,
             animationId: 0,
             isPlayingRef: isPlaying
-        };
+        } as SceneState;
 
         const handleContextLost = (e: Event) => {
             e.preventDefault?.();
-            console.warn('AnimatedLogo WebGL context lost; recreating renderer.');
-            if (!sceneRef.current) return;
-            cancelAnimationFrame(sceneRef.current.animationId);
-            try {
-                disposeObject3D(sceneRef.current.scene);
-                sceneRef.current.scene.clear();
-                sceneRef.current.renderer.renderLists?.dispose?.();
-                sceneRef.current.renderer.dispose();
-            } catch {
-                // ignore
+            console.warn('AnimatedLogo WebGL context lost; will recreate after delay.');
+            
+            // Stop animation loop
+            animationRunningRef.current = false;
+            if (sceneRef.current) {
+                cancelAnimationFrame(sceneRef.current.animationId);
             }
-            if (containerRef.current && sceneRef.current.renderer.domElement) {
+            
+            // Schedule recreation with delay to allow GPU recovery
+            setTimeout(() => {
+                if (!sceneRef.current) return;
                 try {
-                    containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                    disposeObject3D(sceneRef.current.scene);
+                    sceneRef.current.scene.clear();
+                    sceneRef.current.renderer.renderLists?.dispose?.();
+                    sceneRef.current.renderer.dispose();
                 } catch {
                     // ignore
                 }
-            }
-            sceneRef.current = null;
-            requestAnimationFrame(() => initScene());
+                if (containerRef.current && sceneRef.current.renderer.domElement) {
+                    try {
+                        containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                    } catch {
+                        // ignore
+                    }
+                }
+                sceneRef.current = null;
+                mountedRef.current = false;
+                requestAnimationFrame(() => initScene());
+            }, 100);
         };
 
         renderer.domElement.addEventListener('webglcontextlost', handleContextLost as any, false);
+
+        // Do an initial render immediately so something is visible
+        renderer.render(scene, camera);
 
         // Animation loop
         const clock = new THREE.Clock();
@@ -246,7 +264,7 @@ export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser 
             if (!sceneRef.current) return;
             try {
                 const {
-                    camera, renderer,
+                    scene, camera, renderer,
                     logoMesh, particles, orbiters, glowRing, tempObject, isPlayingRef
                 } = sceneRef.current;
 
@@ -387,10 +405,17 @@ export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser 
         };
 
         const loop = () => {
-            animate();
-            if (sceneRef.current) {
-                sceneRef.current.animationId = requestAnimationFrame(loop);
+            // Check if we should continue running
+            if (!animationRunningRef.current || !sceneRef.current) {
+                return;
             }
+            
+            // Skip rendering when tab is not visible to save resources
+            if (!document.hidden) {
+                animate();
+            }
+            
+            sceneRef.current.animationId = requestAnimationFrame(loop);
         };
         loop();
     }, []);
@@ -414,6 +439,9 @@ export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser 
         initScene();
 
         return () => {
+            // Stop animation loop first
+            animationRunningRef.current = false;
+            
             if (sceneRef.current) {
                 cancelAnimationFrame(sceneRef.current.animationId);
                 try {
@@ -425,11 +453,18 @@ export const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ isPlaying, analyser 
                     console.warn('AnimatedLogo cleanup failed:', e);
                 } finally {
                     if (containerRef.current && sceneRef.current.renderer.domElement) {
-                        containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                        try {
+                            containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+                        } catch {
+                            // Element may already be removed
+                        }
                     }
                 }
                 sceneRef.current = null;
             }
+            
+            // Reset mount tracking for potential remount
+            mountedRef.current = false;
         };
     }, [initScene]);
 

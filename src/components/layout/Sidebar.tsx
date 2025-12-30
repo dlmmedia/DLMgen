@@ -1,6 +1,7 @@
-import React from 'react';
-import { Home, Compass, Library, Heart, Radio, ListMusic, User, PlusCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Home, Compass, Library, Heart, Radio, ListMusic, User, PlusCircle, X, Music } from 'lucide-react';
 import { AnimatedLogo } from '../AnimatedLogo';
+import { Playlist } from '../../types';
 
 interface SidebarProps {
     activeTab: string;
@@ -8,9 +9,25 @@ interface SidebarProps {
     isOpen: boolean;
     isPlaying?: boolean;
     analyser?: AnalyserNode | null;
+    // Synced playlists from App state
+    playlists?: Playlist[];
+    onCreatePlaylist?: (name: string) => void;
+    onDeletePlaylist?: (playlistId: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, isPlaying, analyser }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ 
+    activeTab, 
+    setActiveTab, 
+    isOpen, 
+    isPlaying, 
+    analyser,
+    playlists = [],
+    onCreatePlaylist,
+    onDeletePlaylist,
+}) => {
+    const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+    const [newPlaylistName, setNewPlaylistName] = useState('');
+
     const mainMenu = [
         { id: 'home', label: 'Home', icon: Home },
         { id: 'create', label: 'Create', icon: PlusCircle },
@@ -18,16 +35,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
         { id: 'library', label: 'Library', icon: Library },
     ];
 
-    const libraryMenu = [
+    const libraryQuickLinks = [
         { id: 'liked', label: 'Liked Songs', icon: Heart },
         { id: 'recent', label: 'Recently Played', icon: Radio },
     ];
 
-    const playlists = [
+    const genrePlaylists = [
         { id: 'ambient', label: 'Ambient Vibes', icon: ListMusic },
         { id: 'edm', label: 'EDM Bangers', icon: ListMusic },
         { id: 'rock', label: 'Rock Classics', icon: ListMusic },
     ];
+
+    const handleCreatePlaylist = () => {
+        if (!newPlaylistName.trim()) return;
+        
+        if (onCreatePlaylist) {
+            onCreatePlaylist(newPlaylistName.trim());
+        }
+        setNewPlaylistName('');
+        setShowPlaylistModal(false);
+    };
+
+    const handleDeletePlaylist = (playlistId: string) => {
+        if (onDeletePlaylist) {
+            onDeletePlaylist(playlistId);
+        }
+        if (activeTab === playlistId) {
+            setActiveTab('library');
+        }
+    };
 
     return (
         <aside className={`
@@ -72,14 +108,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
                     </div>
                 </div>
 
-                {/* Library */}
+                {/* Quick Links */}
                 <div>
                     <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Your Library</div>
                     <div className="space-y-1">
-                        {libraryMenu.map(item => (
+                        {libraryQuickLinks.map(item => (
                             <button
                                 key={item.id}
-                                onClick={() => setActiveTab(item.id)}
+                                onClick={() => setActiveTab('library')}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all"
                             >
                                 <item.icon size={18} />
@@ -89,19 +125,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
                     </div>
                 </div>
 
-                {/* Genres/Playlists */}
+                {/* Genre Playlists */}
                 <div>
-                    <div className="flex items-center justify-between px-4 mb-2">
-                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Genres</div>
-                        <PlusCircle size={14} className="text-gray-500 hover:text-white cursor-pointer" />
-                    </div>
+                    <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Genres</div>
                     <div className="space-y-1">
-                        {playlists.map(item => (
+                        {genrePlaylists.map(item => (
                             <button
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
                                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
-                             ${activeTab === item.id
+                              ${activeTab === item.id
                                         ? 'bg-white/5 text-white'
                                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                                     }`}
@@ -110,6 +143,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
                                 {item.label}
                             </button>
                         ))}
+                    </div>
+                </div>
+
+                {/* User Playlists */}
+                <div>
+                    <div className="flex items-center justify-between px-4 mb-2">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Playlists</div>
+                        <button
+                            onClick={() => setShowPlaylistModal(true)}
+                            className="p-1 rounded hover:bg-white/10 transition-colors"
+                            title="Create new playlist"
+                        >
+                            <PlusCircle size={14} className="text-gray-500 hover:text-primary" />
+                        </button>
+                    </div>
+                    <div className="space-y-1">
+                        {playlists.length === 0 ? (
+                            <div className="px-4 py-2 text-xs text-gray-600">
+                                No playlists yet
+                            </div>
+                        ) : (
+                            playlists.map(playlist => (
+                                <div
+                                    key={playlist.id}
+                                    className="group flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer text-gray-400 hover:text-white hover:bg-white/5"
+                                    onClick={() => setActiveTab('library')}
+                                >
+                                    <ListMusic size={18} />
+                                    <span className="flex-1 truncate">{playlist.name}</span>
+                                    <span className="text-[10px] text-gray-600">{playlist.trackIds.length}</span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeletePlaylist(playlist.id);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                                        title="Delete playlist"
+                                    >
+                                        <X size={12} className="text-gray-400 hover:text-red-400" />
+                                    </button>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
@@ -126,6 +202,60 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
                     </div>
                 </div>
             </div>
+
+            {/* Create Playlist Modal */}
+            {showPlaylistModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                    <div className="bg-surface border border-white/10 rounded-2xl p-6 w-80 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <Music size={16} className="text-primary" />
+                                </div>
+                                <h3 className="text-lg font-bold text-white">New Playlist</h3>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowPlaylistModal(false);
+                                    setNewPlaylistName('');
+                                }}
+                                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                                <X size={18} className="text-gray-400" />
+                            </button>
+                        </div>
+                        
+                        <input
+                            type="text"
+                            value={newPlaylistName}
+                            onChange={(e) => setNewPlaylistName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
+                            placeholder="Playlist name..."
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 mb-4"
+                            autoFocus
+                        />
+                        
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowPlaylistModal(false);
+                                    setNewPlaylistName('');
+                                }}
+                                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreatePlaylist}
+                                disabled={!newPlaylistName.trim()}
+                                className="flex-1 py-2.5 bg-primary hover:bg-primary/80 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Create
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </aside>
     );
 };
