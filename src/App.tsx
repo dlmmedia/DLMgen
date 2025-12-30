@@ -27,6 +27,83 @@ import { CREATORS } from './data/tracks';
 import { SongDetailsModal } from './components/ui/SongDetailsModal';
 import { LibraryView } from './components/library';
 
+/**
+ * Sanitize lyrics to remove mock content, metadata tags, and prompt fragments
+ * Ensures only clean, displayable lyrics are stored
+ */
+function sanitizeLyrics(lyrics: string): string {
+  if (!lyrics) return '';
+  
+  // If instrumental, keep it simple
+  if (lyrics.trim() === '[Instrumental]' || lyrics.toLowerCase().includes('instrumental')) {
+    return '[Instrumental]';
+  }
+  
+  let cleaned = lyrics;
+  
+  // Remove metadata tags like [Title: ...], [Genre: ...], [Style: ...], etc.
+  // But keep structure tags like [Verse], [Chorus], [Bridge]
+  const metadataTags = [
+    /\[Title:.*?\]/gi,
+    /\[Genre:.*?\]/gi,
+    /\[Style:.*?\]/gi,
+    /\[Language:.*?\]/gi,
+    /\[Mood:.*?\]/gi,
+    /\[Target BPM:.*?\]/gi,
+    /\[Structure Template:.*?\]/gi,
+    /\[Vocal Style:.*?\]/gi,
+    /\[Delivery:.*?\]/gi,
+    /\[BPM:.*?\]/gi,
+  ];
+  
+  for (const pattern of metadataTags) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  
+  // Remove mock/placeholder patterns
+  const mockPatterns = [
+    /\(Mock lyrics.*?\)/gi,
+    /\(Generated for prompt.*?\)/gi,
+    /\(Placeholder.*?\)/gi,
+    /Imagine a great song here.*/gi,
+    /With a catchy melody.*/gi,
+  ];
+  
+  for (const pattern of mockPatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  
+  // Remove any lines that look like they contain the raw prompt
+  const lines = cleaned.split('\n');
+  const filteredLines = lines.filter(line => {
+    const trimmed = line.trim();
+    // Keep empty lines for spacing
+    if (!trimmed) return true;
+    // Keep section headers
+    if (trimmed.match(/^\[(Verse|Chorus|Bridge|Intro|Outro|Pre-Chorus|Hook)\s*\d?\]$/i)) {
+      return true;
+    }
+    // Remove lines that look like prompts or instructions
+    if (trimmed.toLowerCase().startsWith('create a song')) return false;
+    if (trimmed.toLowerCase().startsWith('generate')) return false;
+    if (trimmed.toLowerCase().startsWith('write a')) return false;
+    if (trimmed.toLowerCase().includes('prompt:')) return false;
+    return true;
+  });
+  
+  // Clean up excessive blank lines
+  let result = filteredLines.join('\n');
+  result = result.replace(/\n{3,}/g, '\n\n');
+  result = result.trim();
+  
+  // If nothing left after cleaning, return a default message
+  if (!result || result.length < 10) {
+    return '';
+  }
+  
+  return result;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -303,16 +380,23 @@ export default function App() {
       // Step 5: Finalizing
       setGenerationStep(4);
       const newTrackId = `gen-${Date.now()}`;
+      
+      // Sanitize lyrics to remove any mock content or metadata tags
+      const cleanedLyrics = sanitizeLyrics(metadata.lyrics);
+      
+      // Use custom title if provided, otherwise use generated title
+      const finalTitle = params.customTitle || metadata.title;
+      
       const newTrack: Track = {
         id: newTrackId,
-        title: metadata.title,
+        title: finalTitle,
         artist: 'AI Composer',
         url: audioUrl,
         audioUrl: audioUrl,
         genre: metadata.styleTags?.[0] as any || 'Other',
         duration: params.isCustom ? params.durationSeconds : 180,
         coverUrl: coverUrl,
-        lyrics: metadata.lyrics,
+        lyrics: cleanedLyrics,
         styleTags: metadata.styleTags,
         description: metadata.description,
         isInstrumental: params.isInstrumental,

@@ -54,6 +54,7 @@ interface MenuItemProps {
   hasSubmenu?: boolean;
   danger?: boolean;
   children?: React.ReactNode;
+  submenuPosition?: 'left' | 'right';
 }
 
 const MenuItem: React.FC<MenuItemProps> = ({
@@ -65,19 +66,61 @@ const MenuItem: React.FC<MenuItemProps> = ({
   hasSubmenu = false,
   danger = false,
   children,
+  submenuPosition = 'right',
 }) => {
   const [showSubmenu, setShowSubmenu] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle mouse enter with immediate show
+  const handleMouseEnter = () => {
+    if (!hasSubmenu || disabled) return;
+    // Clear any pending hide timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setShowSubmenu(true);
+  };
+
+  // Handle mouse leave with delay to allow moving to submenu
+  const handleMouseLeave = () => {
+    if (!hasSubmenu) return;
+    // Delay hiding to allow mouse to move to submenu
+    hideTimeoutRef.current = setTimeout(() => {
+      setShowSubmenu(false);
+    }, 150);
+  };
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle click for submenu items - also toggle on click for touch devices
+  const handleClick = () => {
+    if (disabled) return;
+    if (hasSubmenu) {
+      // Toggle submenu on click (for touch devices)
+      setShowSubmenu(!showSubmenu);
+    } else if (onClick) {
+      onClick();
+    }
+  };
 
   return (
     <div
       ref={itemRef}
       className="relative"
-      onMouseEnter={() => hasSubmenu && setShowSubmenu(true)}
-      onMouseLeave={() => hasSubmenu && setShowSubmenu(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <button
-        onClick={disabled ? undefined : onClick}
+        onClick={handleClick}
         disabled={disabled}
         className={`
           w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors
@@ -99,13 +142,21 @@ const MenuItem: React.FC<MenuItemProps> = ({
           </span>
         )}
         {hasSubmenu && (
-          <ChevronRight size={14} className="text-gray-500" />
+          <ChevronRight size={14} className={`text-gray-500 transition-transform ${showSubmenu ? 'rotate-90' : ''}`} />
         )}
       </button>
       
-      {/* Submenu */}
+      {/* Submenu - position based on submenuPosition prop */}
       {hasSubmenu && showSubmenu && children && (
-        <div className="absolute left-full top-0 ml-1 min-w-[180px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg shadow-2xl overflow-hidden z-[60]">
+        <div 
+          className={`
+            absolute top-0 min-w-[200px] max-w-[280px] bg-white dark:bg-[#1a1a1a] 
+            border border-gray-200 dark:border-white/10 rounded-lg shadow-2xl overflow-hidden z-[60]
+            ${submenuPosition === 'left' ? 'right-full mr-1' : 'left-full ml-1'}
+          `}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           {children}
         </div>
       )}
@@ -141,6 +192,10 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Determine submenu position based on parent menu position
+  // If menu opens left, submenus should also open left to prevent overflow
+  const submenuPos = position === 'left' ? 'left' : 'right';
 
   // Close menu on escape key
   useEffect(() => {
@@ -236,6 +291,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<Scissors size={14} />}
           label="Remix/Edit"
           hasSubmenu
+          submenuPosition={submenuPos}
           disabled
         />
 
@@ -244,6 +300,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<Sparkles size={14} />}
           label="Create"
           hasSubmenu
+          submenuPosition={submenuPos}
           disabled
         />
 
@@ -272,6 +329,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<Plus size={14} />}
           label="Add to Playlist"
           hasSubmenu
+          submenuPosition={submenuPos}
         >
           <div className="py-1">
             {playlists.length > 0 ? (
@@ -339,6 +397,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<FolderInput size={14} />}
           label="Move to Workspace"
           hasSubmenu
+          submenuPosition={submenuPos}
           disabled={!onMoveToWorkspace}
         >
           <div className="py-1">
@@ -433,6 +492,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<Eye size={14} />}
           label="Visibility & Permissions"
           hasSubmenu
+          submenuPosition={submenuPos}
           disabled
         />
 
@@ -443,6 +503,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<Share2 size={14} />}
           label="Share"
           hasSubmenu
+          submenuPosition={submenuPos}
         >
           <div className="py-1">
             <button
@@ -493,6 +554,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<Download size={14} />}
           label="Download"
           hasSubmenu
+          submenuPosition={submenuPos}
         >
           <div className="py-1">
             <button
@@ -526,6 +588,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
           icon={<Flag size={14} />}
           label="Report"
           hasSubmenu
+          submenuPosition={submenuPos}
           disabled
         />
 

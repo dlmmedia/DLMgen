@@ -570,7 +570,7 @@ function generateFallbackTitle(concept: string): string {
 }
 
 // ============================================================================
-// FALLBACK LYRICS BUILDER
+// FALLBACK LYRICS BUILDER - Dynamic & Creative
 // ============================================================================
 
 interface FallbackParams {
@@ -584,9 +584,418 @@ interface FallbackParams {
   targetBpm?: number;
 }
 
-function buildFallbackLyrics(params: FallbackParams): string {
+// Themed lyric templates for different moods
+interface LyricTheme {
+  verses: string[][];
+  choruses: string[][];
+  bridges: string[][];
+  intros: string[][];
+  outros: string[][];
+}
+
+// Extract meaningful keywords from a concept/prompt
+function extractKeywords(concept: string): string[] {
+  const stopWords = new Set([
+    'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'must', 'about', 'with', 'for', 'and', 'or',
+    'but', 'in', 'on', 'at', 'to', 'from', 'by', 'of', 'that', 'this',
+    'it', 'its', 'song', 'make', 'create', 'write', 'generate'
+  ]);
+  
+  return concept
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !stopWords.has(word))
+    .slice(0, 5);
+}
+
+// Generate a creative title from concept
+export function generateCreativeTitle(concept: string, mood?: string): string {
+  const keywords = extractKeywords(concept);
+  
+  const titlePatterns = [
+    (kw: string[]) => kw.length > 0 ? `${capitalize(kw[0])} Dreams` : 'Infinite Dreams',
+    (kw: string[]) => kw.length > 1 ? `${capitalize(kw[0])} & ${capitalize(kw[1])}` : 'Hearts Collide',
+    (kw: string[]) => kw.length > 0 ? `Chasing ${capitalize(kw[0])}` : 'Chasing Stars',
+    (kw: string[]) => kw.length > 0 ? `The ${capitalize(kw[0])} Within` : 'The Fire Within',
+    (kw: string[]) => kw.length > 0 ? `${capitalize(kw[0])} Rising` : 'Phoenix Rising',
+    (kw: string[]) => kw.length > 1 ? `Where ${capitalize(kw[0])} Meets ${capitalize(kw[1])}` : 'Where Shadows Meet',
+    (kw: string[]) => kw.length > 0 ? `Echoes of ${capitalize(kw[0])}` : 'Echoes of Tomorrow',
+    (kw: string[]) => kw.length > 0 ? `${capitalize(kw[0])} Tonight` : 'Alive Tonight',
+    (kw: string[]) => kw.length > 0 ? `Beyond ${capitalize(kw[0])}` : 'Beyond the Horizon',
+    (kw: string[]) => kw.length > 0 ? `${capitalize(kw[0])} in Motion` : 'Hearts in Motion',
+  ];
+  
+  const moodTitles: Record<string, string[]> = {
+    'Hopeful': ['New Beginnings', 'Brighter Days', 'Rise Again', 'Tomorrow Waits'],
+    'Dark': ['Shadows Fall', 'Midnight Echoes', 'Into the Abyss', 'Fading Light'],
+    'Romantic': ['Heartstrings', 'Forever Yours', 'Love Unspoken', 'Two Hearts'],
+    'Melancholic': ['Tears of Rain', 'Fading Memories', 'Silent Goodbye', 'Empty Rooms'],
+    'Empowering': ['Unstoppable', 'Rise Up', 'Breaking Chains', 'Fearless'],
+    'Nostalgic': ['Golden Days', 'Remember When', 'Traces of You', 'Distant Summers'],
+    'Euphoric': ['Electric Skies', 'Infinite Bliss', 'Wild and Free', 'On Top of the World'],
+  };
+  
+  // Try mood-based title first
+  if (mood && moodTitles[mood]) {
+    const moodOptions = moodTitles[mood];
+    return moodOptions[Math.floor(Math.random() * moodOptions.length)];
+  }
+  
+  // Use pattern-based title with keywords
+  const pattern = titlePatterns[Math.floor(Math.random() * titlePatterns.length)];
+  return pattern(keywords);
+}
+
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Themed lyrics collections
+const LYRIC_THEMES: Record<string, LyricTheme> = {
+  hopeful: {
+    verses: [
+      [
+        'Every sunrise brings a chance to start again',
+        'Leaving yesterday behind like an old friend',
+        'Through the storm I find my way back home',
+        'Never walking through this world alone',
+      ],
+      [
+        'I can feel the change coming like the spring',
+        'Open arms to catch whatever life may bring',
+        'Every scar becomes a story I can tell',
+        'Rising from the ashes where I fell',
+      ],
+      [
+        'Dawn is breaking through the clouds above',
+        'Finding strength in every moment made of love',
+        'Step by step I climb a little higher',
+        'Fueled by faith and burning bright like fire',
+      ],
+    ],
+    choruses: [
+      [
+        'We rise, we fall, we stand again',
+        'Stronger than we were back then',
+        'This is our moment, our time to shine',
+        'The future is yours and mine',
+      ],
+      [
+        'Hold on, the best is yet to come',
+        'We are warriors, we are one',
+        'Through the darkness, find the light',
+        'Everything will be alright',
+      ],
+    ],
+    bridges: [
+      [
+        'When the world feels heavy on your shoulders',
+        'Remember you were made to move the boulders',
+        'Take my hand and we will face the unknown',
+        'Together we are never on our own',
+      ],
+    ],
+    intros: [
+      ['Breathe in deep, a brand new day awaits', 'Open your eyes to infinite space'],
+      ['The horizon calls with golden light', 'A promise whispered through the night'],
+    ],
+    outros: [
+      ['And so we carry on, forever strong', 'This is where we both belong'],
+      ['The journey never ends, just begins anew', 'I believe in me, I believe in you'],
+    ],
+  },
+  romantic: {
+    verses: [
+      [
+        'Your eyes tell stories words could never say',
+        'In your arms is where I want to stay',
+        'Every heartbeat syncs to your melody',
+        'You are everything I need to be free',
+      ],
+      [
+        'Time stands still when I am next to you',
+        'Colors seem more vivid, skies more blue',
+        'In this chaos you became my peace',
+        'With every touch my doubts release',
+      ],
+      [
+        'Written in the stars before we met',
+        'A love story I could never forget',
+        'Your laughter echoes through my soul',
+        'With you beside me I am whole',
+      ],
+    ],
+    choruses: [
+      [
+        'You are my always, my forever',
+        'Through every storm and sunny weather',
+        'Hand in hand, heart to heart',
+        'Nothing could tear us apart',
+      ],
+      [
+        'Fall into love with me tonight',
+        'Hold me close until the morning light',
+        'Every moment spent with you',
+        'Makes my wildest dreams come true',
+      ],
+    ],
+    bridges: [
+      [
+        'I never knew what love could mean',
+        'Until you showed me things unseen',
+        'Now every song reminds me of your face',
+        'You are my shelter, my saving grace',
+      ],
+    ],
+    intros: [
+      ['Soft whispers in the evening air', 'Searching for you everywhere'],
+      ['Hearts colliding like the tide', 'No more reason left to hide'],
+    ],
+    outros: [
+      ['Forever yours until the end of time', 'Your heart entwined so close to mine'],
+      ['Love like ours will never fade away', 'I choose you every single day'],
+    ],
+  },
+  melancholic: {
+    verses: [
+      [
+        'Empty halls where laughter used to ring',
+        'Photographs of summers past still sting',
+        'Memories painted in shades of grey',
+        'Wishing things had gone another way',
+      ],
+      [
+        'Rain falls down like tears upon the glass',
+        'Holding on to moments that have passed',
+        'Silent rooms echo with your name',
+        'Nothing here will ever be the same',
+      ],
+      [
+        'I trace the lines of what we used to be',
+        'A ghost of love that haunts my memory',
+        'Windows fog with every heavy sigh',
+        'Still searching for the reason why',
+      ],
+    ],
+    choruses: [
+      [
+        'I am lost without your guiding light',
+        'Wandering through this endless night',
+        'Broken pieces scattered on the floor',
+        'Not sure who I am anymore',
+      ],
+      [
+        'These empty spaces where you used to stand',
+        'Slip like water through my trembling hands',
+        'Every sunset paints a lonely view',
+        'Everything reminds me of you',
+      ],
+    ],
+    bridges: [
+      [
+        'Maybe someday I will understand',
+        'Why fate had other things planned',
+        'Until then I will carry this weight',
+        'Learning to accept my fate',
+      ],
+    ],
+    intros: [
+      ['Another night without your warmth', 'Counting stars from here up north'],
+      ['Silence speaks the loudest here', 'Echoes of a vanished year'],
+    ],
+    outros: [
+      ['Goodbye is just a word we say', 'But in my heart you always stay'],
+      ['Fading out like evening sun', 'The story ends before begun'],
+    ],
+  },
+  empowering: {
+    verses: [
+      [
+        'They said I could not make it on my own',
+        'But look at how much stronger I have grown',
+        'Every obstacle became a stepping stone',
+        'Building my kingdom, claiming my throne',
+      ],
+      [
+        'Breaking barriers they tried to set in place',
+        'Running this marathon at my own pace',
+        'Voices of doubt fade into the crowd',
+        'Standing tall, speaking clear and loud',
+      ],
+      [
+        'Fire in my veins, thunder in my chest',
+        'I was born to conquer every test',
+        'No more hiding in the shadow of fear',
+        'My purpose finally crystal clear',
+      ],
+    ],
+    choruses: [
+      [
+        'I am unstoppable, I am unbreakable',
+        'Every limit now is shakeable',
+        'Watch me rise above the noise',
+        'I have found my voice',
+      ],
+      [
+        'Nothing can hold me down',
+        'I wear my scars like a crown',
+        'Born to lead, made to fight',
+        'Shining through the darkest night',
+      ],
+    ],
+    bridges: [
+      [
+        'They threw me in the fire but I did not burn',
+        'Every lesson that life taught I had to learn',
+        'Phoenix from the ashes, diamond from the coal',
+        'Unbreakable spirit, unconquerable soul',
+      ],
+    ],
+    intros: [
+      ['Feel the power surging through my veins', 'Breaking free from all these chains'],
+      ['This is my moment, this is my time', 'Every mountain I will climb'],
+    ],
+    outros: [
+      ['Nothing can stop me now I am free', 'I became who I was meant to be'],
+      ['The battle is won but the war carries on', 'I will keep fighting until I am gone'],
+    ],
+  },
+  energetic: {
+    verses: [
+      [
+        'Bass is pumping, feel it in your chest',
+        'Tonight we party harder than the rest',
+        'Hands up high, let go of all control',
+        'Music takes over body, mind, and soul',
+      ],
+      [
+        'Dancing through the chaos, feeling so alive',
+        'This is what it means to truly thrive',
+        'Speakers blasting, crowd is going wild',
+        'Let your inner spirit run like a child',
+      ],
+      [
+        'Adrenaline rushing, heart is beating fast',
+        'Living in the moment, making memories last',
+        'Jump into the rhythm, feel the groove',
+        'Nothing left to prove, just move',
+      ],
+    ],
+    choruses: [
+      [
+        'Turn it up, let the music take control',
+        'Feel the beat deep down in your soul',
+        'Tonight we dance until the break of dawn',
+        'Keep it going, keep it going on',
+      ],
+      [
+        'Lose yourself in the sound',
+        'Feet off the ground',
+        'This is our anthem, our battle cry',
+        'Reaching for the sky',
+      ],
+    ],
+    bridges: [
+      [
+        'Drop the beat and watch the crowd explode',
+        'Energy electric, ready to download',
+        'Every single person feeling the vibe',
+        'This is our tribe, this is our tribe',
+      ],
+    ],
+    intros: [
+      ['Three, two, one, here we go', 'Ready for the show'],
+      ['Feel the energy rise', 'Fire in our eyes'],
+    ],
+    outros: [
+      ['The night is young and so are we', 'Living wild, living free'],
+      ['Until the sun comes up again', 'This party never ends'],
+    ],
+  },
+};
+
+// Map moods to theme keys
+function getMoodTheme(mood: string): string {
+  const moodMap: Record<string, string> = {
+    'Hopeful': 'hopeful',
+    'Dark': 'melancholic',
+    'Romantic': 'romantic',
+    'Melancholic': 'melancholic',
+    'Empowering': 'empowering',
+    'Nostalgic': 'melancholic',
+    'Euphoric': 'energetic',
+  };
+  return moodMap[mood] || 'hopeful';
+}
+
+// Pick a random item from an array
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Track used indices to avoid repetition within a song
+interface UsedIndices {
+  verses: Set<number>;
+  choruses: Set<number>;
+  bridges: Set<number>;
+  intros: Set<number>;
+  outros: Set<number>;
+}
+
+function pickUniqueRandom<T>(arr: T[], used: Set<number>): { item: T; index: number } {
+  const available = arr.map((item, idx) => ({ item, idx })).filter(({ idx }) => !used.has(idx));
+  if (available.length === 0) {
+    // Reset if all used
+    used.clear();
+    const idx = Math.floor(Math.random() * arr.length);
+    return { item: arr[idx], index: idx };
+  }
+  const choice = available[Math.floor(Math.random() * available.length)];
+  return { item: choice.item, index: choice.idx };
+}
+
+// Personalize lyrics by inserting concept keywords
+function personalizeLyrics(lines: string[], keywords: string[]): string[] {
+  if (keywords.length === 0) return lines;
+  
+  // Substitution patterns
+  const substitutions: Record<string, string[]> = {
+    'love': ['passion', 'devotion', 'affection', 'desire'],
+    'heart': ['soul', 'spirit', 'being', 'core'],
+    'night': ['evening', 'dusk', 'twilight', 'darkness'],
+    'light': ['glow', 'radiance', 'shine', 'brightness'],
+    'dream': ['vision', 'aspiration', 'hope', 'fantasy'],
+    'fire': ['flame', 'blaze', 'spark', 'inferno'],
+    'sky': ['heavens', 'cosmos', 'atmosphere', 'expanse'],
+    'rain': ['storm', 'downpour', 'showers', 'tempest'],
+  };
+  
+  return lines.map(line => {
+    // 30% chance to personalize a line with a keyword
+    if (Math.random() < 0.3 && keywords.length > 0) {
+      const keyword = capitalize(pickRandom(keywords));
+      // Replace generic words with keywords where it makes sense
+      if (line.includes('world')) {
+        return line.replace('world', keyword.toLowerCase());
+      }
+      if (line.includes('life')) {
+        return line.replace('life', keyword.toLowerCase());
+      }
+    }
+    return line;
+  });
+}
+
+export function buildFallbackLyrics(params: FallbackParams): string {
   const structureParts = params.structureTemplate.split('→').map(part => part.trim()).filter(Boolean);
-  const title = `${params.concept ? params.concept.split(' ').slice(0, 3).join(' ') : 'Untitled'} Signal`.trim();
+  const keywords = extractKeywords(params.concept);
+  const title = generateCreativeTitle(params.concept, params.mood);
+  const themeKey = getMoodTheme(params.mood);
+  const theme = LYRIC_THEMES[themeKey] || LYRIC_THEMES.hopeful;
+  
   const tagBlock = [
     `[Title: ${title}]`,
     `[Genre: ${params.genre}]`,
@@ -595,61 +1004,55 @@ function buildFallbackLyrics(params: FallbackParams): string {
     `[Mood: ${params.mood}]`,
     `[Target BPM: ${params.targetBpm ?? 'Auto'}]`,
     `[Structure Template: ${params.structureTemplate}]`,
-    `[Vocal Style: airy lead, layered harmonies]`,
-    `[Delivery: emotive, breathy]`,
   ].join('\n');
 
-  const motif = params.concept || 'neon night';
-  const hook = 'we are signal in the glow';
+  // Track used sections to avoid repetition
+  const used: UsedIndices = {
+    verses: new Set(),
+    choruses: new Set(),
+    bridges: new Set(),
+    intros: new Set(),
+    outros: new Set(),
+  };
 
-  const sectionText = structureParts.map(section => formatSection(section, motif, hook)).join('\n\n');
-  return `${tagBlock}\n\n${sectionText}`.trim();
+  const sections: string[] = [];
+  
+  for (const section of structureParts) {
+    const key = section.toLowerCase();
+    let lines: string[];
+    
+    if (key.startsWith('intro')) {
+      const { item, index } = pickUniqueRandom(theme.intros, used.intros);
+      used.intros.add(index);
+      lines = personalizeLyrics([...item], keywords);
+    } else if (key.startsWith('verse')) {
+      const { item, index } = pickUniqueRandom(theme.verses, used.verses);
+      used.verses.add(index);
+      lines = personalizeLyrics([...item], keywords);
+    } else if (key.startsWith('chorus') || key.startsWith('hook')) {
+      const { item, index } = pickUniqueRandom(theme.choruses, used.choruses);
+      used.choruses.add(index);
+      lines = personalizeLyrics([...item], keywords);
+    } else if (key.startsWith('bridge')) {
+      const { item, index } = pickUniqueRandom(theme.bridges, used.bridges);
+      used.bridges.add(index);
+      lines = personalizeLyrics([...item], keywords);
+    } else if (key.startsWith('outro')) {
+      const { item, index } = pickUniqueRandom(theme.outros, used.outros);
+      used.outros.add(index);
+      lines = personalizeLyrics([...item], keywords);
+    } else {
+      // Default to verse
+      const { item, index } = pickUniqueRandom(theme.verses, used.verses);
+      used.verses.add(index);
+      lines = personalizeLyrics([...item], keywords);
+    }
+    
+    sections.push(`[${section}]\n${lines.join('\n')}`);
+  }
+
+  return `${tagBlock}\n\n${sections.join('\n\n')}`.trim();
 }
-
-function formatSection(section: string, motif: string, hook: string): string {
-  const key = section.toLowerCase();
-
-  const verseLines = [
-    `I trace the city, ${motif} on repeat`,
-    `Echoes turn to verses under streetlight heat`,
-    `Every step a rhythm, every sign a clue`,
-    `I keep the channel open just to call to you`,
-  ];
-
-  const chorusLines = [
-    `Meet me where the skylines glow`,
-    `${hook}`,
-    `Hold the spark and let it show`,
-    `Heartbeats sending radio`,
-  ];
-
-  const bridgeLines = [
-    `If the dawn runs slow, we bend the time`,
-    `Orbit on a promise, keep the rhyme`,
-    `Gravity can wait, we take the climb`,
-    `Signal to the stars that you are mine`,
-  ];
-
-  const introLines = [
-    `Neon in my lungs, the evening flows`,
-    `Footsteps in the hush where the current grows`,
-  ];
-
-  const outroLines = [
-    `Neon fades but the hum stays in our chest`,
-    `Promise holds the light while the night finds rest`,
-  ];
-
-  if (key.startsWith('intro')) return wrapSection(section, introLines);
-  if (key.startsWith('verse')) return wrapSection(section, verseLines);
-  if (key.startsWith('chorus') || key.startsWith('hook')) return wrapSection(section, chorusLines);
-  if (key.startsWith('bridge')) return wrapSection(section, bridgeLines);
-  if (key.startsWith('outro')) return wrapSection(section, outroLines);
-
-  return wrapSection(section, verseLines);
-}
-
-const wrapSection = (label: string, lines: string[]) => `[${label}]\n${lines.join('\n')}`;
 
 // ============================================================================
 // METADATA PARSING

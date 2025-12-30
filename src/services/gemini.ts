@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedMetadata } from "../types";
+import { buildFallbackLyrics, generateCreativeTitle } from "./lyricsSystem";
 
 // Initialize Gemini
 // Note: API Key must be in VITE_GEMINI_API_KEY environment variable
@@ -8,7 +9,78 @@ const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' }
 const SYSTEM_INSTRUCTION = `You are an expert music composer and songwriter for a top-tier AI music generation app. 
 Your goal is to create creative, catchy, and coherent song metadata (lyrics, title, style tags) based on user prompts.
 If the user requests an instrumental, do not generate lyrics (return empty string).
-Ensure lyrics follow a standard song structure (Verse, Chorus, Verse, Chorus, Bridge, Chorus).`;
+Ensure lyrics follow a standard song structure (Verse, Chorus, Verse, Chorus, Bridge, Chorus).
+IMPORTANT: Generate UNIQUE, CREATIVE lyrics. Never use generic placeholder text or reference the prompt directly in lyrics.
+Each song should feel original with meaningful, poetic words.`;
+
+// Detect mood from prompt keywords
+function detectMood(prompt: string): string {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  const moodKeywords: Record<string, string[]> = {
+    'Romantic': ['love', 'heart', 'romance', 'kiss', 'together', 'forever', 'passion', 'beloved'],
+    'Melancholic': ['sad', 'tears', 'cry', 'lost', 'miss', 'gone', 'lonely', 'goodbye', 'farewell', 'broken'],
+    'Empowering': ['strong', 'power', 'rise', 'fight', 'conquer', 'unstoppable', 'warrior', 'victory', 'champion'],
+    'Energetic': ['party', 'dance', 'club', 'bass', 'beat', 'pump', 'wild', 'crazy', 'edm', 'rave'],
+    'Dark': ['dark', 'shadow', 'night', 'demon', 'death', 'evil', 'horror', 'fear', 'nightmare'],
+    'Nostalgic': ['remember', 'memory', 'past', 'old', 'childhood', 'yesterday', 'back then', 'used to'],
+    'Euphoric': ['joy', 'happy', 'bliss', 'ecstasy', 'amazing', 'wonderful', 'incredible', 'magic'],
+  };
+  
+  for (const [mood, keywords] of Object.entries(moodKeywords)) {
+    if (keywords.some(kw => lowerPrompt.includes(kw))) {
+      return mood;
+    }
+  }
+  
+  return 'Hopeful'; // Default mood
+}
+
+// Infer genre/style from prompt
+function inferStyleTags(prompt: string, customStyle?: string): string[] {
+  const lowerPrompt = prompt.toLowerCase();
+  const tags: string[] = [];
+  
+  // Genre detection
+  const genreKeywords: Record<string, string[]> = {
+    'Rock': ['rock', 'guitar', 'band', 'grunge', 'metal'],
+    'Pop': ['pop', 'catchy', 'radio', 'mainstream'],
+    'Hip-Hop': ['hip hop', 'rap', 'beat', 'flow', 'bars'],
+    'Electronic': ['electronic', 'synth', 'edm', 'techno', 'house', 'dubstep'],
+    'R&B': ['r&b', 'rnb', 'soul', 'groove', 'smooth'],
+    'Jazz': ['jazz', 'swing', 'bebop', 'blues'],
+    'Country': ['country', 'western', 'cowboy', 'nashville'],
+    'Acoustic': ['acoustic', 'unplugged', 'folk', 'singer-songwriter'],
+    'Classical': ['classical', 'orchestra', 'symphony', 'piano'],
+    'Ambient': ['ambient', 'atmospheric', 'soundscape', 'chill'],
+  };
+  
+  for (const [genre, keywords] of Object.entries(genreKeywords)) {
+    if (keywords.some(kw => lowerPrompt.includes(kw))) {
+      tags.push(genre);
+      break;
+    }
+  }
+  
+  // Energy detection
+  if (lowerPrompt.match(/fast|upbeat|energetic|dance|party/)) {
+    tags.push('Upbeat');
+  } else if (lowerPrompt.match(/slow|chill|relaxed|calm|mellow/)) {
+    tags.push('Mellow');
+  }
+  
+  // Add custom style if provided
+  if (customStyle) {
+    tags.push(customStyle.split(',')[0].trim());
+  }
+  
+  // Default tags if none detected
+  if (tags.length === 0) {
+    tags.push('Pop', 'Modern');
+  }
+  
+  return tags.slice(0, 4);
+}
 
 export async function generateSongMetadata(
   prompt: string,
@@ -35,6 +107,10 @@ export async function generateSongMetadata(
     ${customLyrics ? `Use these lyrics: \n${customLyrics}\n` : ''}
     ${customStyle ? `Use this musical style: ${customStyle}` : ''}
     ${customTitle ? `Use this title: ${customTitle}` : ''}
+    
+    CRITICAL: Create ORIGINAL, MEANINGFUL lyrics that tell a story. 
+    Do NOT include placeholder text, the prompt itself, or generic filler content.
+    Each line should be poetic and singable.
   `;
 
   try {
@@ -71,16 +147,33 @@ export async function generateSongMetadata(
     }
     throw new Error("No text response from Gemini");
   } catch (error) {
-    console.error("Metadata Generation Error (switching to mock):", error);
+    console.error("Metadata Generation Error (switching to fallback):", error);
 
-    // Fallback Mock Generation
+    // Detect mood from prompt for better fallback generation
+    const mood = detectMood(prompt);
+    const styleTags = inferStyleTags(prompt, customStyle);
+    
+    // Use the improved fallback lyrics generator
+    const fallbackLyrics = isInstrumental 
+      ? "[Instrumental]"
+      : customLyrics || buildFallbackLyrics({
+          concept: prompt,
+          genre: styleTags[0] || 'Pop',
+          style: customStyle || 'Modern',
+          mood: mood,
+          language: 'English',
+          structureTemplate: 'Verse 1 → Chorus → Verse 2 → Chorus → Bridge → Chorus',
+          perspective: 'first person',
+        });
+    
+    // Generate a creative title instead of generic "Song about..."
+    const title = customTitle || generateCreativeTitle(prompt, mood);
+    
     return {
-      title: customTitle || `Song about ${prompt.substring(0, 20)}...`,
-      lyrics: isInstrumental
-        ? "[Instrumental]"
-        : customLyrics || `[Verse 1]\n(Mock lyrics generated for prompt: "${prompt}")\n\n[Chorus]\nImagine a great song here...\nWith a catchy melody.`,
-      styleTags: customStyle ? [customStyle] : ["Pop", "Electronic"], // Default tags
-      description: prompt
+      title,
+      lyrics: fallbackLyrics,
+      styleTags,
+      description: `A ${mood.toLowerCase()} ${styleTags[0]?.toLowerCase() || 'pop'} song about ${prompt.substring(0, 50)}`
     };
   }
 }
