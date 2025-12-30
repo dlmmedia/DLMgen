@@ -281,7 +281,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
         ref={menuRef}
         className={`
           absolute z-50 min-w-[220px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 
-          rounded-lg shadow-2xl overflow-hidden backdrop-blur-xl
+          rounded-lg shadow-2xl backdrop-blur-xl
           ${position === 'left' ? 'right-0' : 'left-0'}
           top-full mt-1
         `}
