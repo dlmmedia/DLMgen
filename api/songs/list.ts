@@ -47,13 +47,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         WHERE genre = ${genre}
         ORDER BY created_at DESC 
         LIMIT ${limitNum} OFFSET ${offsetNum}
-      `;
+      ` as StoredSong[];
     } else {
       songs = await sql`
         SELECT * FROM songs 
         ORDER BY created_at DESC 
         LIMIT ${limitNum} OFFSET ${offsetNum}
-      `;
+      ` as StoredSong[];
     }
 
     // Transform to match frontend expected format
