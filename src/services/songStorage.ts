@@ -2,9 +2,17 @@
  * Song Storage Service - Client-side API for managing songs
  * All data is persisted in Neon Postgres via Vercel Edge Functions
  * Audio and cover files are stored in Vercel Blob
+ * With localStorage backup for offline resilience
  */
 
 import { Track } from '../types';
+import {
+  cacheSongs,
+  getCachedSongs,
+  addSongToCache,
+  removeSongFromCache,
+  mergeSongs,
+} from './localStorageService';
 
 // Get API base URL
 const getApiBase = () => '/api';
@@ -60,9 +68,34 @@ async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
 
 /**
  * Save a generated song to Neon Postgres + Vercel Blob storage
+ * Also caches locally for persistence
  */
 export async function saveSong(params: SaveSongParams): Promise<StoredSong> {
   const createdAt = Date.now();
+  
+  // Create an optimistic local song object
+  const localSong: StoredSong = {
+    id: params.id,
+    title: params.title,
+    artist: params.artist || 'AI Composer',
+    url: params.audioUrl,
+    audioUrl: params.audioUrl,
+    genre: params.genre as Track['genre'],
+    duration: params.duration,
+    coverUrl: params.coverUrl || '',
+    lyrics: params.lyrics,
+    styleTags: params.styleTags,
+    description: params.description,
+    isInstrumental: params.isInstrumental,
+    bpm: params.bpm,
+    keySignature: params.keySignature,
+    vocalStyle: params.vocalStyle,
+    createdAt,
+  };
+  
+  // Save to local cache immediately for persistence
+  addSongToCache(localSong);
+  console.log('Song cached locally:', localSong.id);
   
   // Convert audio blob URL to base64 if it's a blob URL
   let audioBase64: string | null = null;
@@ -98,41 +131,31 @@ export async function saveSong(params: SaveSongParams): Promise<StoredSong> {
     // Ensure url field is set
     savedSong.url = savedSong.audioUrl || savedSong.url;
     
+    // Update local cache with server response (may have different URLs)
+    addSongToCache(savedSong);
+    
     console.log('Song saved successfully:', savedSong.id);
     console.log('Audio URL:', savedSong.audioUrl);
     
     return savedSong;
   } catch (error) {
-    console.error('Failed to save song:', error);
+    console.error('Failed to save song to server, using local cache:', error);
     
-    // Return a minimal song object so the app can still function
-    return {
-      id: params.id,
-      title: params.title,
-      artist: params.artist,
-      url: params.audioUrl,
-      audioUrl: params.audioUrl,
-      genre: params.genre as Track['genre'],
-      duration: params.duration,
-      coverUrl: params.coverUrl || '',
-      lyrics: params.lyrics,
-      styleTags: params.styleTags,
-      description: params.description,
-      isInstrumental: params.isInstrumental,
-      bpm: params.bpm,
-      keySignature: params.keySignature,
-      vocalStyle: params.vocalStyle,
-      createdAt,
-    };
+    // Return the local song that's already in cache
+    return localSong;
   }
 }
 
 /**
  * Load all generated songs from Neon Postgres
+ * Falls back to localStorage cache if server is unavailable
  */
 export async function loadSongs(): Promise<StoredSong[]> {
+  // Always get local cache first as fallback
+  const cachedSongs = getCachedSongs();
+  
   try {
-    const response = await fetch(`${getApiBase()}/songs/list`, {
+    const response = await fetch(`${getApiBase()}/songs/list?limit=100`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -144,13 +167,20 @@ export async function loadSongs(): Promise<StoredSong[]> {
     }
 
     const data = await response.json();
-    const songs = data.songs as StoredSong[];
+    const serverSongs = data.songs as StoredSong[];
     
-    console.log(`Loaded ${songs.length} songs from database`);
-    return songs;
+    // Merge server songs with any local-only songs (in case of pending sync)
+    const mergedSongs = mergeSongs(serverSongs, cachedSongs);
+    
+    // Update cache with merged data
+    cacheSongs(mergedSongs);
+    
+    console.log(`Loaded ${serverSongs.length} songs from database, merged with ${cachedSongs.length} cached songs`);
+    return mergedSongs;
   } catch (error) {
-    console.error('Failed to load songs:', error);
-    return [];
+    console.error('Failed to load songs from server, using cache:', error);
+    console.log(`Using ${cachedSongs.length} cached songs`);
+    return cachedSongs;
   }
 }
 
@@ -197,8 +227,13 @@ export async function searchSongs(query: string, limit = 20): Promise<StoredSong
 
 /**
  * Delete a song from Neon Postgres + Vercel Blob storage
+ * Also removes from local cache
  */
 export async function deleteSong(id: string): Promise<boolean> {
+  // Remove from local cache immediately
+  removeSongFromCache(id);
+  console.log('Song removed from cache:', id);
+  
   try {
     const response = await fetch(`${getApiBase()}/songs/delete?id=${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -208,15 +243,15 @@ export async function deleteSong(id: string): Promise<boolean> {
     });
 
     if (response.ok) {
-      console.log('Song deleted:', id);
+      console.log('Song deleted from server:', id);
       return true;
     }
     
-    console.warn('Failed to delete song:', id);
-    return false;
+    console.warn('Failed to delete song from server:', id);
+    return true; // Still return true since cache is updated
   } catch (error) {
-    console.error('Error deleting song:', error);
-    return false;
+    console.error('Error deleting song from server:', error);
+    return true; // Return true since cache is already updated
   }
 }
 

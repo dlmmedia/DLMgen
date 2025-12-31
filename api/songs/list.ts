@@ -35,8 +35,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { genre, limit = '50', offset = '0' } = req.query;
-    const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+    const { genre, limit = '100', offset = '0' } = req.query;
+    // Allow up to 200 songs to ensure all creations are shown
+    const limitNum = Math.min(parseInt(limit as string) || 100, 200);
     const offsetNum = parseInt(offset as string) || 0;
 
     let songs: StoredSong[];

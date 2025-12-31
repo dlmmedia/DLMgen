@@ -263,12 +263,6 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
       <div className="p-4 bg-gradient-to-b from-gray-100 dark:from-white/5 to-transparent border-b border-gray-200 dark:border-white/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Credits badge */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full border border-gray-200 dark:border-white/10">
-              <Music2 size={14} className="text-primary" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">3.9k</span>
-            </div>
-
             {/* Simple/Custom Toggle */}
             <div className="flex bg-gray-200 dark:bg-black/40 p-1 rounded-xl border border-gray-300 dark:border-white/5">
               <button
@@ -879,12 +873,9 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 dark:border-white/5 bg-gradient-to-b from-transparent to-gray-100 dark:from-surface dark:to-surface backdrop-blur-xl sticky bottom-0 z-20">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]" />
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">DLM-{selectedVersion.toUpperCase()} Music Model</span>
-          </div>
-          <span className="text-xs text-gray-500 font-mono">120 Credits</span>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]" />
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">DLM-{selectedVersion.toUpperCase()} Music Model</span>
         </div>
 
         <button

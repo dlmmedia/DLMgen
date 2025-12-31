@@ -109,60 +109,62 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white dark:via-surface/80 dark:to-surface" />
         </div>
 
-        {/* Content */}
-        <div className="relative p-5">
-          {/* Cover Art */}
-          <div className="relative w-full aspect-square max-w-[200px] mx-auto mb-4 rounded-xl overflow-hidden shadow-2xl group">
-            {track.coverUrl ? (
-              <img
-                src={track.coverUrl}
-                alt={track.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gray-200 dark:bg-white/10 flex items-center justify-center">
-                <Music size={48} className="text-gray-400 dark:text-white/30" />
-              </div>
-            )}
+        {/* Content - Compact Layout */}
+        <div className="relative p-4">
+          <div className="flex items-center gap-4">
+            {/* Cover Art - Smaller */}
+            <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden shadow-lg group">
+              {track.coverUrl ? (
+                <img
+                  src={track.coverUrl}
+                  alt={track.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-200 dark:bg-white/10 flex items-center justify-center">
+                  <Music size={24} className="text-gray-400 dark:text-white/30" />
+                </div>
+              )}
 
-            {/* Play Overlay */}
-            <button
-              onClick={onPlay}
-              className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${
-                isCurrent && isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-              }`}
-            >
-              <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
-                {isCurrent && isPlaying ? (
-                  <Pause className="text-white fill-white" size={24} />
-                ) : (
-                  <Play className="text-white fill-white ml-1" size={24} />
+              {/* Play Overlay */}
+              <button
+                onClick={onPlay}
+                className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${
+                  isCurrent && isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
+                  {isCurrent && isPlaying ? (
+                    <Pause className="text-white fill-white" size={16} />
+                  ) : (
+                    <Play className="text-white fill-white ml-0.5" size={16} />
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* Track Info - Right of cover */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-0.5 truncate">{track.title}</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{track.artist}</p>
+
+              {/* Meta Pills - Inline */}
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-white/5 rounded-full text-gray-600 dark:text-gray-400">
+                  <Clock size={10} />
+                  {formatDuration(track.duration)}
+                </span>
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-white/5 rounded-full text-gray-600 dark:text-gray-400">
+                  <Tag size={10} />
+                  {track.genre}
+                </span>
+                {track.isInstrumental && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-500/20 rounded-full text-green-700 dark:text-green-400">
+                    <Music size={10} />
+                    Instrumental
+                  </span>
                 )}
               </div>
-            </button>
-          </div>
-
-          {/* Track Info */}
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1 truncate">{track.title}</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{track.artist}</p>
-
-            {/* Meta Pills */}
-            <div className="flex flex-wrap justify-center gap-2 text-xs">
-              <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-white/5 rounded-full text-gray-600 dark:text-gray-400">
-                <Clock size={10} />
-                {formatDuration(track.duration)}
-              </span>
-              <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-white/5 rounded-full text-gray-600 dark:text-gray-400">
-                <Tag size={10} />
-                {track.genre}
-              </span>
-              {track.isInstrumental && (
-                <span className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-500/20 rounded-full text-green-700 dark:text-green-400">
-                  <Music size={10} />
-                  Instrumental
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -207,31 +209,32 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4">
           {track.isInstrumental ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center mb-4">
-                <Music size={28} className="text-green-600 dark:text-green-400" />
+              <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center mb-3">
+                <Music size={24} className="text-green-600 dark:text-green-400" />
               </div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                This is an instrumental track with no vocals
+                Instrumental track
               </p>
             </div>
           ) : parsedLyrics.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {parsedLyrics.map((item, index) => {
                 if (item.type === 'header') {
                   return (
                     <div
                       key={index}
-                      className="text-xs font-bold text-primary uppercase tracking-wider mt-4 mb-2 first:mt-0"
+                      className="text-sm font-bold text-primary uppercase tracking-wide mt-5 mb-2 first:mt-0 flex items-center gap-2"
                     >
-                      [{item.content}]
+                      <span className="w-1 h-4 bg-primary rounded-full" />
+                      {item.content}
                     </div>
                   );
                 }
                 if (!item.content) {
-                  return <div key={index} className="h-2" />;
+                  return <div key={index} className="h-3" />;
                 }
                 return (
-                  <p key={index} className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-mono">
+                  <p key={index} className="text-base text-gray-700 dark:text-gray-200 leading-relaxed pl-3">
                     {item.content}
                   </p>
                 );
@@ -239,8 +242,8 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mb-4">
-                <FileText size={28} className="text-gray-400 dark:text-gray-500" />
+              <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mb-3">
+                <FileText size={20} className="text-gray-400 dark:text-gray-500" />
               </div>
               <p className="text-gray-500 dark:text-gray-400 text-sm">No lyrics available</p>
             </div>
@@ -248,34 +251,34 @@ export const LyricsViewer: React.FC<LyricsViewerProps> = ({
         </div>
       </div>
 
-      {/* Footer with Date & Description */}
-      <div className="border-t border-gray-200 dark:border-white/10 p-4 space-y-3 bg-gray-50 dark:bg-white/5">
-        {/* Date */}
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          <Calendar size={12} />
-          <span>Created {formatDate(track.createdAt)}</span>
-        </div>
-
-        {/* Style Tags */}
-        {track.styleTags && track.styleTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {track.styleTags.map((tag, i) => (
-              <span
-                key={i}
-                className="px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary"
-              >
-                {tag}
-              </span>
-            ))}
+      {/* Footer - Compact */}
+      <div className="border-t border-gray-200 dark:border-white/10 px-4 py-2.5 bg-gray-50 dark:bg-white/5">
+        <div className="flex items-center justify-between gap-3">
+          {/* Date */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <Calendar size={10} />
+            <span>{formatDate(track.createdAt)}</span>
           </div>
-        )}
 
-        {/* Description */}
-        {track.description && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
-            {track.description}
-          </p>
-        )}
+          {/* Style Tags - Horizontal scroll */}
+          {track.styleTags && track.styleTags.length > 0 && (
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+              {track.styleTags.slice(0, 3).map((tag, i) => (
+                <span
+                  key={i}
+                  className="px-1.5 py-0.5 bg-primary/10 border border-primary/20 rounded text-[10px] text-primary whitespace-nowrap"
+                >
+                  {tag}
+                </span>
+              ))}
+              {track.styleTags.length > 3 && (
+                <span className="px-1.5 py-0.5 text-[10px] text-gray-500">
+                  +{track.styleTags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

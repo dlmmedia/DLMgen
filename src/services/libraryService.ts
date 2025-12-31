@@ -1,9 +1,27 @@
 /**
  * Library Service - Client-side API for managing playlists, workspaces, history, and likes
  * All data is persisted in Neon Postgres via Vercel Edge Functions
+ * With localStorage backup for offline resilience
  */
 
 import { Playlist, Workspace, HistoryEntry, LibraryData, Track } from '../types';
+import {
+  cacheLibraryData,
+  getCachedLibraryData,
+  addPlaylistToCache,
+  removePlaylistFromCache,
+  updatePlaylistInCache,
+  addTrackToPlaylistInCache,
+  addWorkspaceToCache,
+  removeWorkspaceFromCache,
+  updateWorkspaceInCache,
+  moveTrackToWorkspaceInCache,
+  addToHistoryInCache,
+  clearHistoryInCache,
+  addLikeToCache,
+  removeLikeFromCache,
+  mergeLibraryData,
+} from './localStorageService';
 
 // Get API base URL
 const getApiBase = () => '/api';
@@ -14,8 +32,12 @@ const getApiBase = () => '/api';
 
 /**
  * Load all library data from the server in one request
+ * Falls back to localStorage cache if server is unavailable
  */
 export async function loadLibraryData(): Promise<LibraryData> {
+  // Always get local cache first as fallback
+  const cachedData = getCachedLibraryData();
+  
   try {
     const response = await fetch(`${getApiBase()}/library/sync`);
     
@@ -26,28 +48,20 @@ export async function loadLibraryData(): Promise<LibraryData> {
     const result = await response.json();
     
     if (result.success && result.data) {
-      return result.data;
+      // Merge server data with any local-only items
+      const mergedData = mergeLibraryData(result.data, cachedData);
+      // Cache the merged data
+      cacheLibraryData(mergedData);
+      console.log('Library data synced from server and cached locally');
+      return mergedData;
     }
     
     throw new Error('Invalid response format');
   } catch (error) {
-    console.error('Failed to load library data:', error);
-    // Return empty defaults on error
-    return {
-      playlists: [],
-      workspaces: [
-        {
-          id: 'workspace-default',
-          name: 'My Songs',
-          description: 'Default workspace for all your songs',
-          trackIds: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        }
-      ],
-      history: [],
-      likedTrackIds: [],
-    };
+    console.error('Failed to load library data from server, using cache:', error);
+    // Return cached data as fallback
+    console.log('Using cached library data:', cachedData.playlists.length, 'playlists,', cachedData.workspaces.length, 'workspaces');
+    return cachedData;
   }
 }
 
@@ -63,22 +77,50 @@ export async function createPlaylist(
   initialTrackId?: string,
   description?: string
 ): Promise<Playlist> {
-  const response = await fetch(`${getApiBase()}/playlists/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name,
-      description,
-      initialSongId: initialTrackId,
-    }),
-  });
+  // Create optimistic local playlist first
+  const optimisticPlaylist: Playlist = {
+    id: `playlist-${Date.now()}`,
+    name,
+    description,
+    trackIds: initialTrackId ? [initialTrackId] : [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  
+  // Save to cache immediately for persistence
+  addPlaylistToCache(optimisticPlaylist);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/playlists/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        description,
+        initialSongId: initialTrackId,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to create playlist');
+    if (!response.ok) {
+      console.warn('Server playlist creation failed, using local cache');
+      return optimisticPlaylist;
+    }
+
+    const result = await response.json();
+    const serverPlaylist = result.playlist;
+    
+    // Update cache with server ID if different
+    if (serverPlaylist.id !== optimisticPlaylist.id) {
+      removePlaylistFromCache(optimisticPlaylist.id);
+      addPlaylistToCache(serverPlaylist);
+    }
+    
+    return serverPlaylist;
+  } catch (error) {
+    console.error('Failed to create playlist on server:', error);
+    // Return the optimistic playlist that's already in cache
+    return optimisticPlaylist;
   }
-
-  const result = await response.json();
-  return result.playlist;
 }
 
 /**
@@ -119,53 +161,87 @@ export async function updatePlaylist(
   playlistId: string,
   updates: Partial<Pick<Playlist, 'name' | 'description' | 'coverUrl' | 'isPublic'>>
 ): Promise<Playlist> {
-  const response = await fetch(`${getApiBase()}/playlists/update`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: playlistId,
-      ...updates,
-    }),
-  });
+  // Update cache immediately
+  updatePlaylistInCache(playlistId, updates);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/playlists/update`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: playlistId,
+        ...updates,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to update playlist');
+    if (!response.ok) {
+      console.warn('Failed to update playlist on server');
+      throw new Error('Failed to update playlist');
+    }
+
+    const result = await response.json();
+    return result.playlist;
+  } catch (error) {
+    console.error('Failed to update playlist:', error);
+    // Cache is already updated, return a merged version
+    const cached = getCachedLibraryData();
+    const playlist = cached.playlists.find(p => p.id === playlistId);
+    if (playlist) return playlist;
+    throw error;
   }
-
-  const result = await response.json();
-  return result.playlist;
 }
 
 /**
  * Delete playlist
  */
 export async function deletePlaylist(playlistId: string): Promise<boolean> {
-  const response = await fetch(`${getApiBase()}/playlists/delete?id=${encodeURIComponent(playlistId)}`, {
-    method: 'DELETE',
-  });
+  // Remove from cache immediately
+  removePlaylistFromCache(playlistId);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/playlists/delete?id=${encodeURIComponent(playlistId)}`, {
+      method: 'DELETE',
+    });
 
-  return response.ok;
+    return response.ok;
+  } catch (error) {
+    console.error('Failed to delete playlist from server:', error);
+    // Already removed from cache
+    return true;
+  }
 }
 
 /**
  * Add track to playlist
  */
 export async function addTrackToPlaylist(trackId: string, playlistId: string): Promise<string[]> {
-  const response = await fetch(`${getApiBase()}/playlists/add-song`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      playlistId,
-      songId: trackId,
-    }),
-  });
+  // Update cache immediately
+  addTrackToPlaylistInCache(trackId, playlistId);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/playlists/add-song`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playlistId,
+        songId: trackId,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to add track to playlist');
+    if (!response.ok) {
+      console.warn('Failed to add track to playlist on server');
+      // Cache is already updated
+    }
+
+    const result = await response.json();
+    return result.trackIds || [];
+  } catch (error) {
+    console.error('Failed to add track to playlist:', error);
+    // Return from cache
+    const cached = getCachedLibraryData();
+    const playlist = cached.playlists.find(p => p.id === playlistId);
+    return playlist?.trackIds || [];
   }
-
-  const result = await response.json();
-  return result.trackIds || [];
 }
 
 /**
@@ -215,22 +291,50 @@ export async function createWorkspace(
   initialTrackId?: string,
   description?: string
 ): Promise<Workspace> {
-  const response = await fetch(`${getApiBase()}/workspaces/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name,
-      description,
-      initialSongId: initialTrackId,
-    }),
-  });
+  // Create optimistic local workspace first
+  const optimisticWorkspace: Workspace = {
+    id: `workspace-${Date.now()}`,
+    name,
+    description,
+    trackIds: initialTrackId ? [initialTrackId] : [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  
+  // Save to cache immediately for persistence
+  addWorkspaceToCache(optimisticWorkspace);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/workspaces/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        description,
+        initialSongId: initialTrackId,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to create workspace');
+    if (!response.ok) {
+      console.warn('Server workspace creation failed, using local cache');
+      return optimisticWorkspace;
+    }
+
+    const result = await response.json();
+    const serverWorkspace = result.workspace;
+    
+    // Update cache with server ID if different
+    if (serverWorkspace.id !== optimisticWorkspace.id) {
+      removeWorkspaceFromCache(optimisticWorkspace.id);
+      addWorkspaceToCache(serverWorkspace);
+    }
+    
+    return serverWorkspace;
+  } catch (error) {
+    console.error('Failed to create workspace on server:', error);
+    // Return the optimistic workspace that's already in cache
+    return optimisticWorkspace;
   }
-
-  const result = await response.json();
-  return result.workspace;
 }
 
 /**
@@ -254,21 +358,34 @@ export async function updateWorkspace(
   workspaceId: string,
   updates: Partial<Pick<Workspace, 'name' | 'description' | 'coverUrl'>>
 ): Promise<Workspace> {
-  const response = await fetch(`${getApiBase()}/workspaces/update`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: workspaceId,
-      ...updates,
-    }),
-  });
+  // Update cache immediately
+  updateWorkspaceInCache(workspaceId, updates);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/workspaces/update`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: workspaceId,
+        ...updates,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to update workspace');
+    if (!response.ok) {
+      console.warn('Failed to update workspace on server');
+      throw new Error('Failed to update workspace');
+    }
+
+    const result = await response.json();
+    return result.workspace;
+  } catch (error) {
+    console.error('Failed to update workspace:', error);
+    // Cache is already updated, return from cache
+    const cached = getCachedLibraryData();
+    const workspace = cached.workspaces.find(w => w.id === workspaceId);
+    if (workspace) return workspace;
+    throw error;
   }
-
-  const result = await response.json();
-  return result.workspace;
 }
 
 /**
@@ -279,28 +396,45 @@ export async function deleteWorkspace(workspaceId: string): Promise<boolean> {
     return false; // Cannot delete default workspace
   }
 
-  const response = await fetch(`${getApiBase()}/workspaces/delete?id=${encodeURIComponent(workspaceId)}`, {
-    method: 'DELETE',
-  });
+  // Remove from cache immediately
+  removeWorkspaceFromCache(workspaceId);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/workspaces/delete?id=${encodeURIComponent(workspaceId)}`, {
+      method: 'DELETE',
+    });
 
-  return response.ok;
+    return response.ok;
+  } catch (error) {
+    console.error('Failed to delete workspace from server:', error);
+    // Already removed from cache
+    return true;
+  }
 }
 
 /**
  * Move track to workspace (removes from other workspaces)
  */
 export async function moveTrackToWorkspace(trackId: string, workspaceId: string): Promise<void> {
-  const response = await fetch(`${getApiBase()}/workspaces/move-song`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      songId: trackId,
-      workspaceId,
-    }),
-  });
+  // Update cache immediately
+  moveTrackToWorkspaceInCache(trackId, workspaceId);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/workspaces/move-song`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        songId: trackId,
+        workspaceId,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to move track to workspace');
+    if (!response.ok) {
+      console.warn('Failed to move track to workspace on server');
+    }
+  } catch (error) {
+    console.error('Failed to move track to workspace:', error);
+    // Cache is already updated
   }
 }
 
@@ -326,14 +460,22 @@ export async function getHistory(limit = 100): Promise<HistoryEntry[]> {
  * Add track to play history
  */
 export async function addToHistory(trackId: string): Promise<void> {
-  const response = await fetch(`${getApiBase()}/library/history`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ songId: trackId }),
-  });
+  // Update cache immediately
+  addToHistoryInCache(trackId);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/library/history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songId: trackId }),
+    });
 
-  if (!response.ok) {
-    console.warn('Failed to add to history');
+    if (!response.ok) {
+      console.warn('Failed to add to history on server');
+    }
+  } catch (error) {
+    console.error('Failed to add to history:', error);
+    // Cache is already updated
   }
 }
 
@@ -341,12 +483,20 @@ export async function addToHistory(trackId: string): Promise<void> {
  * Clear play history
  */
 export async function clearHistory(): Promise<void> {
-  const response = await fetch(`${getApiBase()}/library/history`, {
-    method: 'DELETE',
-  });
+  // Clear cache immediately
+  clearHistoryInCache();
+  
+  try {
+    const response = await fetch(`${getApiBase()}/library/history`, {
+      method: 'DELETE',
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to clear history');
+    if (!response.ok) {
+      console.warn('Failed to clear history on server');
+    }
+  } catch (error) {
+    console.error('Failed to clear history:', error);
+    // Cache is already cleared
   }
 }
 
@@ -372,14 +522,22 @@ export async function getLikedTrackIds(): Promise<string[]> {
  * Like a track
  */
 export async function likeTrack(trackId: string): Promise<void> {
-  const response = await fetch(`${getApiBase()}/library/likes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ songId: trackId }),
-  });
+  // Update cache immediately
+  addLikeToCache(trackId);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/library/likes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songId: trackId }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to like track');
+    if (!response.ok) {
+      console.warn('Failed to like track on server');
+    }
+  } catch (error) {
+    console.error('Failed to like track:', error);
+    // Cache is already updated
   }
 }
 
@@ -387,12 +545,20 @@ export async function likeTrack(trackId: string): Promise<void> {
  * Unlike a track
  */
 export async function unlikeTrack(trackId: string): Promise<void> {
-  const response = await fetch(`${getApiBase()}/library/likes?songId=${encodeURIComponent(trackId)}`, {
-    method: 'DELETE',
-  });
+  // Update cache immediately
+  removeLikeFromCache(trackId);
+  
+  try {
+    const response = await fetch(`${getApiBase()}/library/likes?songId=${encodeURIComponent(trackId)}`, {
+      method: 'DELETE',
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to unlike track');
+    if (!response.ok) {
+      console.warn('Failed to unlike track on server');
+    }
+  } catch (error) {
+    console.error('Failed to unlike track:', error);
+    // Cache is already updated
   }
 }
 

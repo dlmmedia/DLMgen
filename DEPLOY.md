@@ -46,3 +46,4 @@ You can also set environment variables via the Vercel Dashboard:
 2. Navigate to Settings → Environment Variables
 3. Add the variables for each environment
 
+

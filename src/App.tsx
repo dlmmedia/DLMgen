@@ -13,6 +13,7 @@ import {
   trackToSaveParams, 
   deleteSong,
 } from './services/songStorage';
+import { getCachedSongs, getCachedLibraryData } from './services/localStorageService';
 import {
   loadLibraryData,
   createPlaylist as createPlaylistAPI,
@@ -197,14 +198,54 @@ export default function App() {
   }, [isPlaying]);
 
   // Load songs from Vercel Blob storage
-  const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
+  // Initialize with cached data for instant UI rendering
+  const [generatedTracks, setGeneratedTracks] = useState<Track[]>(() => {
+    try {
+      const cached = getCachedSongs();
+      return cached.map(storedSongToTrack);
+    } catch {
+      return [];
+    }
+  });
   const [isLoadingSongs, setIsLoadingSongs] = useState(true);
 
   // Playlist, Workspace, History, and Queue state
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [likedTrackIds, setLikedTrackIds] = useState<string[]>([]);
+  // Initialize with cached data for instant UI rendering
+  const [playlists, setPlaylists] = useState<Playlist[]>(() => {
+    try {
+      return getCachedLibraryData().playlists;
+    } catch {
+      return [];
+    }
+  });
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(() => {
+    try {
+      return getCachedLibraryData().workspaces;
+    } catch {
+      return [{
+        id: 'workspace-default',
+        name: 'My Songs',
+        description: 'Default workspace for all your songs',
+        trackIds: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }];
+    }
+  });
+  const [history, setHistory] = useState<HistoryEntry[]>(() => {
+    try {
+      return getCachedLibraryData().history;
+    } catch {
+      return [];
+    }
+  });
+  const [likedTrackIds, setLikedTrackIds] = useState<string[]>(() => {
+    try {
+      return getCachedLibraryData().likedTrackIds;
+    } catch {
+      return [];
+    }
+  });
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   
