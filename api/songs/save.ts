@@ -131,6 +131,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at = ${now}
     `;
 
+    // Automatically add the song to the default workspace (Your Creations)
+    // This ensures all generated songs are visible in the creations view
+    try {
+      await sql`
+        INSERT INTO workspace_songs (workspace_id, song_id, added_at)
+        VALUES ('workspace-default', ${songData.id}, ${now})
+        ON CONFLICT (workspace_id, song_id) DO NOTHING
+      `;
+      console.log(`Song ${songData.id} added to default workspace`);
+    } catch (workspaceError) {
+      console.error('Failed to add song to default workspace:', workspaceError);
+      // Don't fail the request - the song is still saved
+    }
+
     const songMetadata = {
       id: songData.id,
       title: songData.title,

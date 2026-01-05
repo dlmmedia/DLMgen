@@ -6,7 +6,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * Uses the /v1/music/compose endpoint for full control over:
  * - Vocals with lyrics
  * - Instrumental tracks
- * - Duration (10-300 seconds)
+ * - Duration (15-330 seconds per ElevenLabs docs)
  * - Output quality
  * 
  * Best practices from ElevenLabs:
@@ -14,11 +14,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * - Add "instrumental only" to get pure instrumentals
  * - Include lyrics with [Verse], [Chorus] markers
  * - Use vocal descriptors like "female vocals", "male singer"
+ * 
+ * IMPORTANT: The ElevenLabs API has a minimum duration of ~15 seconds
+ * and maximum of ~330 seconds. Shorter durations will be adjusted.
  */
 
 interface GenerateRequest {
     prompt: string;
-    duration_seconds?: number; // 10-300
+    duration_seconds?: number; // 15-330 (ElevenLabs limits)
     instrumental?: boolean;
     output_format?: string; // e.g., 'mp3_44100_192'
     lyrics?: string;
@@ -43,6 +46,13 @@ export default async function handler(
         style,
         title
     }: GenerateRequest = request.body;
+
+    console.log('[ElevenLabs] Request received:', { 
+        duration_seconds, 
+        instrumental, 
+        promptLength: initialPrompt?.length,
+        hasLyrics: !!lyrics
+    });
 
     let prompt = initialPrompt;
 
@@ -69,11 +79,14 @@ export default async function handler(
         return response.status(400).json({ error: 'Prompt is required' });
     }
 
-    console.log('Generating with prompt:', prompt);
+    console.log('[ElevenLabs] Generating with prompt:', prompt.substring(0, 200));
 
-    // Validate duration (10-300 seconds per ElevenLabs docs)
-    const validDuration = Math.max(10, Math.min(300, duration_seconds));
+    // Validate duration - ElevenLabs minimum is ~15 seconds, max is ~330 seconds
+    // If user requests 30 seconds, we must ensure it's not below the API minimum
+    const validDuration = Math.max(15, Math.min(330, duration_seconds));
     const durationMs = validDuration * 1000;
+    
+    console.log(`[ElevenLabs] Duration: requested=${duration_seconds}s, validated=${validDuration}s, ms=${durationMs}`);
 
     const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
 
@@ -92,19 +105,28 @@ export default async function handler(
     try {
         // Use the compose endpoint for full music generation
         // This endpoint supports vocals, lyrics, and complex compositions
+        const requestBody = {
+            prompt: prompt,
+            duration_ms: durationMs,
+            instrumental: instrumental,
+            output_format: output_format
+        };
+        
+        console.log('[ElevenLabs] Sending request to API:', JSON.stringify({
+            ...requestBody,
+            prompt: requestBody.prompt.substring(0, 100) + '...'
+        }));
+        
         const elevenLabsResponse = await fetch('https://api.elevenlabs.io/v1/music/compose', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'xi-api-key': apiKey,
             },
-            body: JSON.stringify({
-                prompt: prompt,
-                duration_ms: durationMs,
-                instrumental: instrumental,
-                output_format: output_format
-            }),
+            body: JSON.stringify(requestBody),
         });
+        
+        console.log(`[ElevenLabs] Response status: ${elevenLabsResponse.status}`);
 
         if (!elevenLabsResponse.ok) {
             const errorText = await elevenLabsResponse.text();
