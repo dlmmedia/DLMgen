@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
-  Mic, Music, Sparkles, Wand2, Disc, Clock, Globe, 
+  Mic, Music, Sparkles, Wand2, Disc, Globe, 
   ChevronDown, Folder, Music2, Plus, X, AlertCircle, CheckCircle
 } from 'lucide-react';
 import { CreateSongParams, VocalStyle } from '../types';
@@ -23,15 +23,8 @@ interface CreateFormProps {
   hideLoader?: boolean;
 }
 
-// Duration options in seconds
-const DURATION_OPTIONS = [
-  { value: 30, label: '30s' },
-  { value: 60, label: '1 min' },
-  { value: 90, label: '1:30' },
-  { value: 120, label: '2 min' },
-  { value: 180, label: '3 min' },
-  { value: 300, label: '5 min' },
-];
+// Default duration in seconds (free-flowing, not user-configurable)
+const DEFAULT_DURATION_SECONDS = 60;
 
 // Quick genre buttons
 const GENRE_BUTTONS = [
@@ -105,8 +98,8 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
-  // Advanced parameters
-  const [durationSeconds, setDurationSeconds] = useState(60);
+  // Advanced parameters - duration is now free-flowing (not user-configurable)
+  const durationSeconds = DEFAULT_DURATION_SECONDS;
   const [vocalStyle, setVocalStyle] = useState<VocalStyle>('auto');
   const [bpm, setBpm] = useState<number | undefined>(undefined);
   const [keySignature, setKeySignature] = useState<string>('');
@@ -798,29 +791,6 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   infoTooltip="Low = chill/mellow, High = intense/driving"
                 />
 
-                {/* Duration */}
-                <div className="space-y-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <Clock size={12} className="text-primary" /> Duration
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {DURATION_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setDurationSeconds(opt.value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                          durationSeconds === opt.value
-                            ? 'bg-primary/20 border-primary/50 text-primary'
-                            : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* BPM & Key */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1035,28 +1005,6 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
               </div>
             </div>
 
-            {/* Duration for Simple Mode */}
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                <Clock size={12} /> Duration
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {DURATION_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setDurationSeconds(opt.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                      durationSeconds === opt.value
-                        ? 'bg-primary/20 border-primary/50 text-primary'
-                        : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Song Title for Simple Mode */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-xl">
               <Music2 size={16} className="text-primary flex-shrink-0" />
@@ -1091,12 +1039,6 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {/* Duration */}
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-200 dark:bg-white/5 rounded text-xs text-gray-700 dark:text-gray-300">
-              <Clock size={10} />
-              {DURATION_OPTIONS.find(d => d.value === durationSeconds)?.label || `${durationSeconds}s`}
-            </span>
-            
             {/* Instrumental/Vocal */}
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
               isInstrumental 

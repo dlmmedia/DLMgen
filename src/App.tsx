@@ -487,6 +487,11 @@ export default function App() {
 
       setGeneratedTracks(prev => [newTrack, ...prev]);
       setCurrentTrack(newTrack);
+      
+      // Immediately load and play the newly created song
+      // This ensures the correct audio source is loaded before playback starts
+      const newTrackAudioSource = newTrack.audioUrl || newTrack.url;
+      void playUrlNow(newTrackAudioSource, newTrack.id);
       setIsPlaying(true);
       // Stay on create tab - don't navigate away!
 
