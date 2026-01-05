@@ -94,6 +94,59 @@ function getEnergyDescriptor(energy: number): string {
 }
 
 /**
+ * Build instrumental-specific prompt components
+ */
+function buildInstrumentalPrompt(params: CreateSongParams): string {
+    const parts: string[] = [];
+    
+    // Add preset style if selected
+    if (params.instrumentalPreset) {
+        const presetDescriptors: Record<string, string> = {
+            'cinematic': 'cinematic orchestral soundtrack, epic, dramatic, sweeping strings',
+            'lofi': 'lo-fi hip hop beats, jazzy chords, warm vinyl crackle, relaxed',
+            'ambient': 'ambient soundscape, ethereal pads, atmospheric, dreamy textures',
+            'jazz': 'smooth jazz, sophisticated harmonies, improvised feel, groovy',
+            'electronic': 'modern electronic, synth-driven, polished production',
+            'acoustic': 'acoustic, organic instruments, warm and natural sound',
+        };
+        const presetDesc = presetDescriptors[params.instrumentalPreset];
+        if (presetDesc) {
+            parts.push(presetDesc);
+        }
+    }
+    
+    // Add selected instruments with emphasis
+    if (params.instruments && params.instruments.length > 0) {
+        const instrumentsStr = params.instruments.join(', ');
+        parts.push(`featuring ${instrumentsStr}`);
+    }
+    
+    // Add structure hints
+    if (params.structureSections && params.structureSections.length > 0) {
+        const structureDescriptors: Record<string, string> = {
+            'intro': 'atmospheric intro',
+            'verse': 'melodic verse section',
+            'buildup': 'rising buildup with tension',
+            'drop': 'powerful drop with energy release',
+            'breakdown': 'stripped down breakdown',
+            'bridge': 'transitional bridge section',
+            'loop': 'repetitive loop pattern',
+            'outro': 'fading outro',
+        };
+        
+        const structureDesc = params.structureSections
+            .map(s => structureDescriptors[s.type] || s.type)
+            .join(', then ');
+        
+        if (structureDesc) {
+            parts.push(`structure: ${structureDesc}`);
+        }
+    }
+    
+    return parts.join(', ');
+}
+
+/**
  * Build the full prompt for ElevenLabs music generation
  * Following best practices from ElevenLabs documentation
  */
@@ -143,6 +196,12 @@ function buildElevenLabsPrompt(params: CreateSongParams): string {
     // 7. Handle instrumental vs vocal track
     if (params.isInstrumental) {
         parts.push('instrumental only, no vocals');
+        
+        // Add detailed instrumental controls
+        const instrumentalPrompt = buildInstrumentalPrompt(params);
+        if (instrumentalPrompt) {
+            parts.push(instrumentalPrompt);
+        }
     } else if (params.customLyrics && params.customLyrics.trim()) {
         // Include formatted lyrics in the prompt
         const formattedLyrics = formatLyrics(params.customLyrics);

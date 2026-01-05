@@ -47,6 +47,25 @@ const formatDuration = (seconds: number) => {
   return `${min}:${sec.toString().padStart(2, '0')}`;
 };
 
+const formatDurationWithComparison = (
+  actual: number,
+  expected?: number
+): { text: string; hasVariance: boolean; isLonger: boolean } => {
+  const actualStr = formatDuration(actual);
+  
+  if (!expected || Math.abs(expected - actual) <= 5) {
+    return { text: actualStr, hasVariance: false, isLonger: false };
+  }
+  
+  const diff = actual - expected;
+  const sign = diff > 0 ? '+' : '';
+  return {
+    text: `${actualStr} (${sign}${diff}s)`,
+    hasVariance: true,
+    isLonger: diff > 0,
+  };
+};
+
 export const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({
   track,
   isSelected,
@@ -136,10 +155,27 @@ export const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({
         </h4>
         <p className="text-xs text-gray-500 truncate">{track.artist}</p>
         <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-500 dark:text-gray-600">
-          <span className="flex items-center gap-1">
-            <Clock size={9} />
-            {formatDuration(track.duration)}
-          </span>
+          {(() => {
+            const durationInfo = formatDurationWithComparison(
+              track.actualDuration || track.duration,
+              track.expectedDuration
+            );
+            return (
+              <span 
+                className={`flex items-center gap-1 ${
+                  durationInfo.hasVariance 
+                    ? durationInfo.isLonger 
+                      ? 'text-yellow-600 dark:text-yellow-500' 
+                      : 'text-blue-600 dark:text-blue-400'
+                    : ''
+                }`}
+                title={durationInfo.hasVariance ? `Expected: ${formatDuration(track.expectedDuration || 0)}` : undefined}
+              >
+                <Clock size={9} />
+                {durationInfo.text}
+              </span>
+            );
+          })()}
           <span className="px-1.5 py-0.5 bg-gray-200 dark:bg-white/5 rounded text-gray-600 dark:text-gray-500">{track.genre}</span>
           {track.isInstrumental && (
             <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-500/10 rounded text-green-700 dark:text-green-500">

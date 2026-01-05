@@ -1,38 +1,74 @@
-import React, { useEffect, useState } from 'react';
-import { Sparkles, Music, Mic, Waves, Disc } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Sparkles, Music, Mic, Waves, Disc, Clock } from 'lucide-react';
 
 interface CircularProgressProps {
   step?: number;
+  isInstrumental?: boolean;
+  durationSeconds?: number;
+  estimatedTime?: number; // in seconds
 }
 
 const STEPS = [
-  { text: 'Analyzing your prompt...', icon: Sparkles, color: '#ef4444' },
-  { text: 'Composing melody...', icon: Music, color: '#f97316' },
-  { text: 'Generating vocals...', icon: Mic, color: '#eab308' },
-  { text: 'Mastering audio...', icon: Waves, color: '#22c55e' },
-  { text: 'Finalizing track...', icon: Disc, color: '#3b82f6' },
+  { text: 'Analyzing your prompt...', icon: Sparkles, color: '#ef4444', duration: 3 },
+  { text: 'Composing melody...', icon: Music, color: '#f97316', duration: 8 },
+  { text: 'Generating vocals...', icon: Mic, color: '#eab308', duration: 15 },
+  { text: 'Mastering audio...', icon: Waves, color: '#22c55e', duration: 5 },
+  { text: 'Finalizing track...', icon: Disc, color: '#3b82f6', duration: 2 },
 ];
 
-export const CircularProgress: React.FC<CircularProgressProps> = ({ step: externalStep }) => {
+const INSTRUMENTAL_STEPS = [
+  { text: 'Analyzing your prompt...', icon: Sparkles, color: '#ef4444', duration: 3 },
+  { text: 'Composing melody...', icon: Music, color: '#f97316', duration: 8 },
+  { text: 'Arranging instruments...', icon: Music, color: '#eab308', duration: 12 },
+  { text: 'Mastering audio...', icon: Waves, color: '#22c55e', duration: 5 },
+  { text: 'Finalizing track...', icon: Disc, color: '#3b82f6', duration: 2 },
+];
+
+export const CircularProgress: React.FC<CircularProgressProps> = ({ 
+  step: externalStep, 
+  isInstrumental = false,
+  durationSeconds,
+  estimatedTime 
+}) => {
   const [internalStep, setInternalStep] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [startTime] = useState(() => Date.now());
 
+  const steps = isInstrumental ? INSTRUMENTAL_STEPS : STEPS;
   const currentStep = externalStep ?? internalStep;
+
+  // Calculate estimated total time based on duration
+  const estimatedTotalTime = useMemo(() => {
+    if (estimatedTime) return estimatedTime;
+    // Base time + additional time per minute of audio
+    const baseTime = 30; // seconds
+    const durationMinutes = (durationSeconds || 120) / 60;
+    return Math.round(baseTime + durationMinutes * 10);
+  }, [estimatedTime, durationSeconds]);
+
+  // Track elapsed time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedTime(Math.round((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [startTime]);
 
   // Auto-advance steps if no external step is provided
   useEffect(() => {
     if (externalStep !== undefined) return;
 
     const stepInterval = setInterval(() => {
-      setInternalStep((prev) => (prev < STEPS.length - 1 ? prev + 1 : prev));
+      setInternalStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
     }, 2500);
 
     return () => clearInterval(stepInterval);
-  }, [externalStep]);
+  }, [externalStep, steps.length]);
 
   // Animate progress bar
   useEffect(() => {
-    const targetProgress = ((currentStep + 1) / STEPS.length) * 100;
+    const targetProgress = ((currentStep + 1) / steps.length) * 100;
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         const diff = targetProgress - prev;
@@ -42,10 +78,18 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ step: extern
     }, 50);
 
     return () => clearInterval(progressInterval);
-  }, [currentStep]);
+  }, [currentStep, steps.length]);
 
-  const CurrentIcon = STEPS[currentStep].icon;
-  const currentColor = STEPS[currentStep].color;
+  const CurrentIcon = steps[currentStep].icon;
+  const currentColor = steps[currentStep].color;
+  
+  // Calculate remaining time
+  const remainingTime = Math.max(0, estimatedTotalTime - elapsedTime);
+  const formatTime = (seconds: number) => {
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+  };
 
   // SVG circle calculations
   const size = 160;
@@ -128,12 +172,26 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ step: extern
       </div>
 
       {/* Step Text */}
-      <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">{STEPS[currentStep].text}</h3>
-      <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Creating your unique sound signature...</p>
+      <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">{steps[currentStep].text}</h3>
+      <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+        {isInstrumental ? 'Crafting your instrumental composition...' : 'Creating your unique sound signature...'}
+      </p>
+      
+      {/* Time Estimate */}
+      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
+        <Clock size={14} />
+        <span>
+          {remainingTime > 0 
+            ? `~${formatTime(remainingTime)} remaining` 
+            : 'Almost done...'}
+        </span>
+        <span className="text-gray-400 dark:text-gray-600">•</span>
+        <span>{formatTime(elapsedTime)} elapsed</span>
+      </div>
 
       {/* Step Indicators */}
       <div className="flex gap-3">
-        {STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <div key={i} className="flex flex-col items-center gap-2">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
@@ -144,8 +202,8 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ step: extern
               style={
                 i <= currentStep
                   ? {
-                      backgroundColor: `${STEPS[i].color}20`,
-                      borderColor: `${STEPS[i].color}50`,
+                      backgroundColor: `${steps[i].color}20`,
+                      borderColor: `${steps[i].color}50`,
                     }
                   : {}
               }
@@ -155,7 +213,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ step: extern
                 className={`transition-all duration-500 ${
                   i <= currentStep ? 'opacity-100' : 'opacity-30'
                 }`}
-                style={i <= currentStep ? { color: STEPS[i].color } : {}}
+                style={i <= currentStep ? { color: steps[i].color } : {}}
               />
             </div>
             <div
@@ -163,8 +221,8 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ step: extern
                 i <= currentStep ? 'w-8' : 'w-2'
               }`}
               style={{
-                backgroundColor: i <= currentStep ? STEPS[i].color : 'rgba(255,255,255,0.1)',
-                boxShadow: i <= currentStep ? `0 0 8px ${STEPS[i].color}50` : 'none',
+                backgroundColor: i <= currentStep ? steps[i].color : 'rgba(255,255,255,0.1)',
+                boxShadow: i <= currentStep ? `0 0 8px ${steps[i].color}50` : 'none',
               }}
             />
           </div>

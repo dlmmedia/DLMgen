@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, Heart } from 'lucide-react';
 import { Track } from '../types';
 
@@ -17,6 +17,29 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
   const audioRef = externalAudioRef || internalAudioRef;
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  
+  // Track the ID of the audio currently loaded to prevent mismatch
+  const loadedTrackIdRef = useRef<string | null>(null);
+  const lastTrackIdRef = useRef<string | null>(null);
+
+  // Handle track changes - ensure audio source matches current track
+  useEffect(() => {
+    const audioEl = audioRef.current;
+    if (!audioEl || !currentTrack) return;
+    
+    const audioSource = currentTrack.audioUrl || currentTrack.url;
+    
+    // Only update source if track actually changed
+    if (lastTrackIdRef.current !== currentTrack.id) {
+      console.log(`Player: Loading new track ${currentTrack.id}`);
+      lastTrackIdRef.current = currentTrack.id;
+      loadedTrackIdRef.current = null; // Mark as loading
+      
+      // Reset progress when loading new track
+      setProgress(0);
+      setDuration(0);
+    }
+  }, [currentTrack, audioRef]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -25,14 +48,29 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
     } else {
       audioRef.current.pause();
     }
-  }, [isPlaying]);
+  }, [isPlaying, audioRef]);
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = useCallback(() => {
     if (audioRef.current) {
       setProgress(audioRef.current.currentTime);
       setDuration(audioRef.current.duration || 0);
     }
-  };
+  }, [audioRef]);
+  
+  // Verify the correct audio is loaded
+  const handleLoadedData = useCallback(() => {
+    if (currentTrack && audioRef.current) {
+      loadedTrackIdRef.current = currentTrack.id;
+      setDuration(audioRef.current.duration || 0);
+      console.log(`Player: Track ${currentTrack.id} loaded, duration: ${audioRef.current.duration}s`);
+    }
+  }, [currentTrack, audioRef]);
+  
+  // Handle audio errors
+  const handleError = useCallback((e: Event) => {
+    console.error('Player: Audio error', e);
+    loadedTrackIdRef.current = null;
+  }, []);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = Number(e.target.value);
@@ -54,7 +92,10 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
+        onLoadedData={handleLoadedData}
+        onError={handleError as any}
         onEnded={onEnded}
+        data-track-id={currentTrack?.id || ''}
       />
 
       {/* Track Info */}

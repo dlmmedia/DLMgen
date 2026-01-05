@@ -31,6 +31,8 @@ import {
 } from './services/libraryService';
 import { generateElevenLabsTrack } from './services/elevenlabs';
 import { downloadTrack, shareTrack } from './services/downloadService';
+import { getAudioDuration } from './utils/audioUtils';
+import { updateTrack as updateTrackAPI } from './services/trackService';
 import { CreateSongParams, Track, Playlist, QueueItem, Workspace, HistoryEntry } from './types';
 import { Menu } from 'lucide-react';
 import { SongCard } from './components/SongCard';
@@ -158,9 +160,18 @@ export default function App() {
     }
   }, []);
 
-  const playUrlNow = useCallback((url: string) => {
+  // Track the intended track to prevent race conditions
+  const intendedTrackIdRef = useRef<string | null>(null);
+  
+  const playUrlNow = useCallback((url: string, trackId?: string) => {
     const audioEl = audioRef.current;
     if (!audioEl) return;
+    
+    // Update the intended track ID to prevent race conditions
+    if (trackId) {
+      intendedTrackIdRef.current = trackId;
+      audioEl.setAttribute('data-track-id', trackId);
+    }
 
     // Important: don't `await` here; keep `play()` on the user-gesture call stack
     // to avoid autoplay restrictions (esp. Safari/iOS).
@@ -169,7 +180,9 @@ export default function App() {
     try {
       // Force the media element to have the right source *within the user gesture*
       // so `play()` isn't blocked and the analyser receives data immediately.
-      if (audioEl.getAttribute('src') !== url) {
+      const currentSrc = audioEl.getAttribute('src');
+      if (currentSrc !== url) {
+        console.log(`Loading audio for track ${trackId || 'unknown'}: ${url.substring(0, 50)}...`);
         audioEl.setAttribute('src', url);
         audioEl.load();
       }
@@ -326,12 +339,16 @@ export default function App() {
         pauseNow();
         setIsPlaying(false);
       } else {
-        void playUrlNow(audioSource);
+        // Pass track ID to ensure correct audio is playing
+        void playUrlNow(audioSource, track.id);
         setIsPlaying(true);
       }
     } else {
+      // Update track and audio atomically to prevent race conditions
+      // Set current track BEFORE triggering audio load
       setCurrentTrack(track);
-      void playUrlNow(audioSource);
+      // Pass track ID to ensure 1:1 mapping between track and audio
+      void playUrlNow(audioSource, track.id);
       setIsPlaying(true);
       
       // Add to history - update local state and persist to API
@@ -354,7 +371,7 @@ export default function App() {
     const nextIndex = (currentIndex + 1) % TRACKS.length;
     const next = TRACKS[nextIndex];
     setCurrentTrack(next);
-    void playUrlNow(next.audioUrl || next.url);
+    void playUrlNow(next.audioUrl || next.url, next.id);
     setIsPlaying(true);
   };
 
@@ -364,7 +381,7 @@ export default function App() {
     const prevIndex = (currentIndex - 1 + TRACKS.length) % TRACKS.length;
     const prev = TRACKS[prevIndex];
     setCurrentTrack(prev);
-    void playUrlNow(prev.audioUrl || prev.url);
+    void playUrlNow(prev.audioUrl || prev.url, prev.id);
     setIsPlaying(true);
   };
 
@@ -405,6 +422,16 @@ export default function App() {
       const blob = await generateElevenLabsTrack(elevenLabsParams);
       audioUrl = URL.createObjectURL(blob);
 
+      // Extract actual duration from the generated audio
+      let actualDuration: number;
+      try {
+        actualDuration = await getAudioDuration(blob);
+        console.log(`Audio duration: actual=${actualDuration}s, expected=${params.durationSeconds}s`);
+      } catch (durationError) {
+        console.warn('Could not extract audio duration, using expected value:', durationError);
+        actualDuration = params.durationSeconds;
+      }
+
       // Step 4: Mastering audio / generating album art
       setGenerationStep(3);
       const coverUrl = await generateAlbumArt(metadata.description);
@@ -427,7 +454,9 @@ export default function App() {
         url: audioUrl,
         audioUrl: audioUrl,
         genre: metadata.styleTags?.[0] as any || 'Other',
-        duration: params.isCustom ? params.durationSeconds : 180,
+        duration: actualDuration, // Use actual measured duration
+        expectedDuration: params.durationSeconds, // Store user's requested duration
+        actualDuration: actualDuration, // Store actual measured duration
         coverUrl: coverUrl,
         lyrics: cleanedLyrics,
         styleTags: metadata.styleTags,
@@ -522,7 +551,7 @@ export default function App() {
       const [nextItem, ...rest] = queue;
       setQueue(rest);
       setCurrentTrack(nextItem.track);
-      void playUrlNow(nextItem.track.audioUrl || nextItem.track.url);
+      void playUrlNow(nextItem.track.audioUrl || nextItem.track.url, nextItem.track.id);
       setIsPlaying(true);
       return;
     }
@@ -742,6 +771,40 @@ export default function App() {
     setDetailsModalTrack(track);
   }, []);
 
+  // Update track metadata
+  const handleUpdateTrack = useCallback(async (trackId: string, updates: Partial<Track>) => {
+    try {
+      // Optimistic update
+      setGeneratedTracks(prev => prev.map(t => 
+        t.id === trackId ? { ...t, ...updates } : t
+      ));
+      
+      // Update details modal if open
+      if (detailsModalTrack?.id === trackId) {
+        setDetailsModalTrack(prev => prev ? { ...prev, ...updates } : null);
+      }
+      
+      // Update current track if playing
+      if (currentTrack?.id === trackId) {
+        setCurrentTrack(prev => prev ? { ...prev, ...updates } : null);
+      }
+      
+      // Persist to API
+      await updateTrackAPI(trackId, {
+        title: updates.title,
+        description: updates.description,
+        styleTags: updates.styleTags,
+        lyrics: updates.lyrics,
+        genre: updates.genre,
+      });
+      
+      console.log(`Track ${trackId} updated successfully`);
+    } catch (error) {
+      console.error('Failed to update track:', error);
+      throw error; // Re-throw to let UI handle it
+    }
+  }, [detailsModalTrack, currentTrack]);
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white overflow-hidden font-sans transition-colors">
       <Sidebar
@@ -920,6 +983,7 @@ export default function App() {
           onPlay={() => handlePlay(detailsModalTrack)}
           onDownload={() => handleDownload(detailsModalTrack, 'mp3')}
           onShare={() => handleShare(detailsModalTrack)}
+          onUpdateTrack={handleUpdateTrack}
         />
       )}
     </div>

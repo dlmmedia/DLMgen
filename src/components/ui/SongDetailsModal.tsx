@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Track } from '../../types';
 import {
   X,
@@ -14,6 +14,9 @@ import {
   Check,
   Download,
   Share2,
+  Edit2,
+  Save,
+  XCircle,
 } from 'lucide-react';
 
 interface SongDetailsModalProps {
@@ -25,6 +28,7 @@ interface SongDetailsModalProps {
   onPlay?: () => void;
   onDownload?: () => void;
   onShare?: () => void;
+  onUpdateTrack?: (trackId: string, updates: Partial<Track>) => Promise<void>;
 }
 
 const formatDate = (timestamp?: number) => {
@@ -43,6 +47,25 @@ const formatDuration = (seconds: number) => {
   const min = Math.floor(seconds / 60);
   const sec = Math.floor(seconds % 60);
   return `${min}:${sec.toString().padStart(2, '0')}`;
+};
+
+const formatDurationWithComparison = (
+  actual: number,
+  expected?: number
+): { text: string; hasVariance: boolean; tooltip?: string } => {
+  const actualStr = formatDuration(actual);
+  
+  if (!expected || Math.abs(expected - actual) <= 5) {
+    return { text: actualStr, hasVariance: false };
+  }
+  
+  const diff = actual - expected;
+  const sign = diff > 0 ? '+' : '';
+  return {
+    text: `${actualStr} (${sign}${diff}s from requested)`,
+    hasVariance: true,
+    tooltip: `You requested ${formatDuration(expected)}, actual: ${actualStr}`,
+  };
 };
 
 // Parse lyrics to identify section headers like [Verse], [Chorus], etc.
@@ -74,15 +97,63 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
   onPlay,
   onDownload,
   onShare,
+  onUpdateTrack,
 }) => {
   const [copied, setCopied] = React.useState(false);
   const parsedLyrics = parseLyrics(track.lyrics || '');
+
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState(track.title);
+  const [editDescription, setEditDescription] = useState(track.description || '');
+  const [editStyleTags, setEditStyleTags] = useState(track.styleTags?.join(', ') || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Reset edit state when track changes
+  useEffect(() => {
+    setEditTitle(track.title);
+    setEditDescription(track.description || '');
+    setEditStyleTags(track.styleTags?.join(', ') || '');
+    setIsEditMode(false);
+  }, [track.id, track.title, track.description, track.styleTags]);
+
+  const handleSaveEdits = async () => {
+    if (!onUpdateTrack) return;
+    
+    setIsSaving(true);
+    try {
+      const updates: Partial<Track> = {
+        title: editTitle.trim() || track.title,
+        description: editDescription.trim() || undefined,
+        styleTags: editStyleTags.split(',').map(t => t.trim()).filter(Boolean),
+      };
+      
+      await onUpdateTrack(track.id, updates);
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('Failed to save edits:', error);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditTitle(track.title);
+    setEditDescription(track.description || '');
+    setEditStyleTags(track.styleTags?.join(', ') || '');
+    setIsEditMode(false);
+  };
 
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        if (isEditMode) {
+          handleCancelEdit();
+        } else {
+          onClose();
+        }
       }
     };
 
@@ -95,7 +166,7 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isEditMode]);
 
   const handleCopyLyrics = async () => {
     if (!track.lyrics) return;
@@ -179,16 +250,53 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
 
             {/* Track Info */}
             <div className="flex-1 flex flex-col justify-end">
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Song</p>
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">{track.title}</h2>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Song</p>
+                {onUpdateTrack && !isEditMode && (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="p-1 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors"
+                    title="Edit song details"
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                )}
+              </div>
+              
+              {isEditMode ? (
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-3xl font-bold text-gray-900 dark:text-white mb-2 bg-transparent border-b-2 border-primary focus:outline-none"
+                  placeholder="Song title"
+                  autoFocus
+                />
+              ) : (
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">{track.title}</h2>
+              )}
               <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">{track.artist}</p>
 
               {/* Meta Info */}
               <div className="flex flex-wrap gap-3 text-sm">
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-gray-700 dark:text-gray-300">
-                  <Clock size={12} />
-                  {formatDuration(track.duration)}
-                </span>
+                {(() => {
+                  const durationInfo = formatDurationWithComparison(
+                    track.actualDuration || track.duration,
+                    track.expectedDuration
+                  );
+                  return (
+                    <span 
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${
+                        durationInfo.hasVariance 
+                          ? 'bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' 
+                          : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300'
+                      }`}
+                      title={durationInfo.tooltip}
+                    >
+                      <Clock size={12} />
+                      {durationInfo.text}
+                    </span>
+                  );
+                })()}
                 <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-gray-700 dark:text-gray-300">
                   <Tag size={12} />
                   {track.genre}
@@ -238,6 +346,27 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
                     <Share2 size={16} />
                     Share
                   </button>
+                )}
+                
+                {/* Edit Mode Save/Cancel Buttons */}
+                {isEditMode && (
+                  <>
+                    <button
+                      onClick={handleSaveEdits}
+                      disabled={isSaving}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-full font-medium transition-colors disabled:opacity-50"
+                    >
+                      <Save size={16} />
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white rounded-full transition-colors"
+                    >
+                      <XCircle size={16} />
+                      Cancel
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -326,9 +455,16 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Details</h3>
 
             {/* Style Tags */}
-            {track.styleTags && track.styleTags.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Style Tags</p>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Style Tags</p>
+              {isEditMode ? (
+                <input
+                  value={editStyleTags}
+                  onChange={(e) => setEditStyleTags(e.target.value)}
+                  placeholder="rock, upbeat, energetic (comma-separated)"
+                  className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary/50"
+                />
+              ) : track.styleTags && track.styleTags.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {track.styleTags.map((tag, i) => (
                     <span
@@ -339,18 +475,30 @@ export const SongDetailsModal: React.FC<SongDetailsModalProps> = ({
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-gray-500 italic">No style tags</p>
+              )}
+            </div>
 
             {/* Description */}
-            {track.description && (
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Description</p>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Description</p>
+              {isEditMode ? (
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Describe this track..."
+                  rows={3}
+                  className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary/50 resize-none"
+                />
+              ) : track.description ? (
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   {track.description}
                 </p>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-gray-500 italic">No description</p>
+              )}
+            </div>
 
             {/* Created Date */}
             <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">

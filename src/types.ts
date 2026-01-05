@@ -28,7 +28,9 @@ export interface Track {
   url: string; // The audio source
   audioUrl?: string; // Alternative field for stored songs
   genre: Genre;
-  duration: number; // in seconds
+  duration: number; // in seconds (actual duration if measured, otherwise expected)
+  expectedDuration?: number; // User-requested duration in seconds
+  actualDuration?: number; // Measured duration from audio file
   coverUrl?: string;
   status?: 'ready' | 'playing' | 'paused';
   // Generated metadata additions
@@ -91,6 +93,16 @@ export interface CreateSongParams {
   excludeStyles?: string; // Negative prompting - styles to avoid
   // Language for lyrics
   language?: string;
+  // Instrumental mode detailed controls
+  instruments?: string[]; // Selected instruments for instrumental tracks
+  structureSections?: StructureSection[]; // Track structure (intro, verse, drop, etc.)
+  instrumentalPreset?: string; // Preset style (cinematic, lo-fi, etc.)
+}
+
+// Structure section for instrumental tracks
+export interface StructureSection {
+  type: 'intro' | 'verse' | 'chorus' | 'drop' | 'bridge' | 'breakdown' | 'buildup' | 'loop' | 'outro';
+  durationSeconds?: number; // Optional duration for this section
 }
 
 // Playlist management

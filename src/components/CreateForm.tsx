@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Mic, Music, Sparkles, Wand2, Disc, Clock, Globe, 
-  ChevronDown, Folder, Music2, Plus, X
+  ChevronDown, Folder, Music2, Plus, X, AlertCircle, CheckCircle
 } from 'lucide-react';
 import { CreateSongParams, VocalStyle } from '../types';
 import { GenerationLoader } from './GenerationLoader';
@@ -15,6 +15,7 @@ import {
   getLineHealth,
   LyricsGenerationParams
 } from '../services/lyricsSystem';
+import { validatePrompt, getPromptFeedback } from '../services/promptValidation';
 
 interface CreateFormProps {
   onSubmit: (params: CreateSongParams) => void;
@@ -60,6 +61,38 @@ const VERSION_OPTIONS = [
   { value: 'v9', label: 'v9', description: 'Classic stable model' },
 ];
 
+// Instrument categories for instrumental mode
+const INSTRUMENT_CATEGORIES = {
+  'Keys': ['Piano', 'Electric Piano', 'Organ', 'Synthesizer', 'Harpsichord'],
+  'Strings': ['Violin', 'Cello', 'Viola', 'Double Bass', 'Acoustic Guitar', 'Electric Guitar'],
+  'Brass': ['Trumpet', 'Saxophone', 'Trombone', 'French Horn', 'Tuba'],
+  'Woodwinds': ['Flute', 'Clarinet', 'Oboe', 'Bassoon', 'Piccolo'],
+  'Percussion': ['Drums', 'Timpani', 'Marimba', 'Vibraphone', 'Congas', 'Bongos'],
+  'Electronic': ['Synth Pad', 'Synth Lead', 'Synth Bass', '808', 'Arpeggiator'],
+};
+
+// Instrumental presets
+const INSTRUMENTAL_PRESETS = [
+  { id: 'cinematic', name: 'Cinematic', description: 'Epic orchestral soundtrack', tags: ['orchestral', 'epic', 'dramatic'] },
+  { id: 'lofi', name: 'Lo-Fi', description: 'Relaxed lo-fi beats', tags: ['lofi', 'chill', 'jazzy'] },
+  { id: 'ambient', name: 'Ambient', description: 'Atmospheric soundscapes', tags: ['ambient', 'ethereal', 'atmospheric'] },
+  { id: 'jazz', name: 'Jazz', description: 'Smooth jazz vibes', tags: ['jazz', 'smooth', 'improvised'] },
+  { id: 'electronic', name: 'Electronic', description: 'Modern electronic', tags: ['electronic', 'synth', 'modern'] },
+  { id: 'acoustic', name: 'Acoustic', description: 'Natural acoustic sounds', tags: ['acoustic', 'organic', 'warm'] },
+];
+
+// Structure sections for instrumental tracks
+const STRUCTURE_SECTIONS = [
+  { type: 'intro', label: 'Intro', description: 'Opening section' },
+  { type: 'verse', label: 'Verse', description: 'Main melodic section' },
+  { type: 'buildup', label: 'Buildup', description: 'Rising tension' },
+  { type: 'drop', label: 'Drop', description: 'High energy release' },
+  { type: 'breakdown', label: 'Breakdown', description: 'Stripped back section' },
+  { type: 'bridge', label: 'Bridge', description: 'Transitional section' },
+  { type: 'loop', label: 'Loop', description: 'Repeating pattern' },
+  { type: 'outro', label: 'Outro', description: 'Closing section' },
+] as const;
+
 export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, hideLoader = false }) => {
   const [isCustom, setIsCustom] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -82,6 +115,11 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
   const [creativity, setCreativity] = useState(50);
   const [energy, setEnergy] = useState(50);
   const [excludeStyles, setExcludeStyles] = useState('');
+  
+  // Instrumental mode controls
+  const [selectedInstruments, setSelectedInstruments] = useState<string[]>([]);
+  const [instrumentalPreset, setInstrumentalPreset] = useState<string>('');
+  const [structureSections, setStructureSections] = useState<string[]>(['intro', 'verse', 'outro']);
 
   // Lyrics generation states
   const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false);
@@ -210,15 +248,34 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
     "Dark Techno", "Acoustic Ballad", "Synthwave Drive"
   ];
 
+  // Validate prompt in real-time
+  const promptValidation = useMemo(() => {
+    if (!prompt.trim()) return { status: 'valid' as const, message: undefined };
+    return getPromptFeedback(prompt);
+  }, [prompt]);
+
+  // Validate lyrics in real-time (for custom mode)
+  const lyricsValidation = useMemo(() => {
+    if (!lyrics.trim()) return { status: 'valid' as const, message: undefined };
+    return getPromptFeedback(lyrics);
+  }, [lyrics]);
+
   const handleSubmit = () => {
     if ((!isCustom && !prompt) || (isCustom && !lyrics && !isInstrumental && !style)) return;
+
+    // Validate before submitting
+    const validation = isCustom ? validatePrompt(lyrics) : validatePrompt(prompt);
+    if (!validation.isValid) {
+      alert(validation.error + (validation.suggestion ? `\n\n${validation.suggestion}` : ''));
+      return;
+    }
 
     onSubmit({
       prompt: isCustom ? '' : prompt,
       isCustom,
       customLyrics: lyrics,
       customStyle: style,
-      customTitle: title,
+      customTitle: title, // Now works for both Simple and Custom modes
       isInstrumental,
       durationSeconds,
       vocalStyle: isInstrumental ? 'auto' : vocalStyle,
@@ -226,8 +283,12 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
       keySignature: keySignature || undefined,
       lyrics: isCustom ? lyrics : undefined,
       style: isCustom ? style : undefined,
-      title: isCustom ? title : undefined,
+      title: title || undefined, // Include title from Simple mode too
       creativity,
+      // Instrumental mode controls
+      instruments: isInstrumental ? selectedInstruments : undefined,
+      instrumentalPreset: isInstrumental ? instrumentalPreset : undefined,
+      structureSections: isInstrumental ? structureSections.map(type => ({ type: type as any })) : undefined,
       energy,
       excludeStyles: excludeStyles || undefined,
       language: currentLanguage.name,
@@ -546,6 +607,108 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   </div>
                 </div>
 
+                {/* Instrumental Mode Controls - Show when instrumental is enabled */}
+                {isInstrumental && (
+                  <div className="space-y-4 p-3 bg-green-50 dark:bg-green-500/5 border border-green-200 dark:border-green-500/20 rounded-xl animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-2 text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-widest">
+                      <Music size={12} />
+                      Instrumental Controls
+                    </div>
+                    
+                    {/* Style Presets */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-600 dark:text-gray-400">Style Preset</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {INSTRUMENTAL_PRESETS.map(preset => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setInstrumentalPreset(instrumentalPreset === preset.id ? '' : preset.id)}
+                            className={`px-2 py-2 rounded-lg text-xs font-medium transition-all border ${
+                              instrumentalPreset === preset.id
+                                ? 'bg-green-500 border-green-500 text-white'
+                                : 'bg-white dark:bg-black/20 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:border-green-400'
+                            }`}
+                            title={preset.description}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Instrument Selection */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-600 dark:text-gray-400">
+                        Featured Instruments
+                        <span className="text-gray-400 dark:text-gray-600 ml-1">({selectedInstruments.length} selected)</span>
+                      </label>
+                      <div className="space-y-2 max-h-36 overflow-y-auto custom-scrollbar">
+                        {Object.entries(INSTRUMENT_CATEGORIES).map(([category, instruments]) => (
+                          <div key={category}>
+                            <span className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-600">{category}</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {instruments.map(instrument => (
+                                <button
+                                  key={instrument}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedInstruments(prev => 
+                                      prev.includes(instrument) 
+                                        ? prev.filter(i => i !== instrument)
+                                        : [...prev, instrument]
+                                    );
+                                  }}
+                                  className={`px-2 py-1 rounded text-[10px] transition-all ${
+                                    selectedInstruments.includes(instrument)
+                                      ? 'bg-green-500 text-white'
+                                      : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-green-100 dark:hover:bg-green-500/10'
+                                  }`}
+                                >
+                                  {instrument}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Structure Sections */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-600 dark:text-gray-400">Track Structure</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {STRUCTURE_SECTIONS.map(section => (
+                          <button
+                            key={section.type}
+                            type="button"
+                            onClick={() => {
+                              setStructureSections(prev =>
+                                prev.includes(section.type)
+                                  ? prev.filter(s => s !== section.type)
+                                  : [...prev, section.type]
+                              );
+                            }}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs transition-all border ${
+                              structureSections.includes(section.type)
+                                ? 'bg-green-500 border-green-500 text-white'
+                                : 'bg-white dark:bg-black/20 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:border-green-400'
+                            }`}
+                            title={section.description}
+                          >
+                            {section.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-600">
+                        Order: {structureSections.length > 0 ? structureSections.map(s => 
+                          STRUCTURE_SECTIONS.find(sec => sec.type === s)?.label
+                        ).join(' → ') : 'Select sections'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Exclude styles */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -812,7 +975,13 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="A sad song about a robot who falls in love with a toaster..."
-                  className="w-full h-48 bg-gray-100 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none leading-relaxed"
+                  className={`w-full h-48 bg-gray-100 dark:bg-black/40 border rounded-xl p-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:ring-1 transition-all resize-none leading-relaxed ${
+                    promptValidation.status === 'error'
+                      ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50'
+                      : promptValidation.status === 'warning'
+                      ? 'border-yellow-500/50 focus:border-yellow-500 focus:ring-yellow-500/50'
+                      : 'border-gray-200 dark:border-white/10 focus:border-primary/50 focus:ring-primary/50'
+                  }`}
                 />
                 <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-white/80 dark:bg-black/60 backdrop-blur-md p-1 rounded-lg border border-gray-200 dark:border-white/10">
                   <span className="text-xs text-gray-500 dark:text-gray-400 px-2 font-medium">Instrumental</span>
@@ -828,6 +997,26 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                   </div>
                 </div>
               </div>
+              
+              {/* Prompt Validation Feedback */}
+              {promptValidation.message && (
+                <div className={`flex items-start gap-2 px-3 py-2 rounded-lg text-sm ${
+                  promptValidation.status === 'error'
+                    ? 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30'
+                    : 'bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/30'
+                }`}>
+                  <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                  <span>{promptValidation.message}</span>
+                </div>
+              )}
+              
+              {/* Validation Success (subtle) */}
+              {prompt.trim() && promptValidation.status === 'valid' && (
+                <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+                  <CheckCircle size={12} />
+                  <span>Prompt looks good!</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -867,15 +1056,82 @@ export const CreateForm: React.FC<CreateFormProps> = ({ onSubmit, isGenerating, 
                 ))}
               </div>
             </div>
+
+            {/* Song Title for Simple Mode */}
+            <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 rounded-xl">
+              <Music2 size={16} className="text-primary flex-shrink-0" />
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Song Title (optional - AI will generate one)"
+                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none"
+              />
+              {title && (
+                <button
+                  onClick={() => setTitle('')}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded transition-colors"
+                >
+                  <X size={14} className="text-gray-400" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 dark:border-white/5 bg-gradient-to-b from-transparent to-gray-100 dark:from-surface dark:to-surface backdrop-blur-xl sticky bottom-0 z-20">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]" />
-          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">DLM-{selectedVersion.toUpperCase()} Music Model</span>
+        {/* Generation Summary - Your Settings */}
+        <div className="mb-4 p-3 bg-gray-100 dark:bg-white/[0.03] border border-gray-200 dark:border-white/5 rounded-xl">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Your Settings</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">DLM-{selectedVersion.toUpperCase()}</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {/* Duration */}
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-200 dark:bg-white/5 rounded text-xs text-gray-700 dark:text-gray-300">
+              <Clock size={10} />
+              {DURATION_OPTIONS.find(d => d.value === durationSeconds)?.label || `${durationSeconds}s`}
+            </span>
+            
+            {/* Instrumental/Vocal */}
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
+              isInstrumental 
+                ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400'
+                : 'bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400'
+            }`}>
+              {isInstrumental ? <Music size={10} /> : <Mic size={10} />}
+              {isInstrumental ? 'Instrumental' : vocalStyle !== 'auto' ? vocalStyle : 'Vocal'}
+            </span>
+            
+            {/* Custom Title if set */}
+            {title && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 rounded text-xs text-primary truncate max-w-32">
+                "{title}"
+              </span>
+            )}
+            
+            {/* Style if in custom mode */}
+            {isCustom && style && (
+              <span className="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-500/10 rounded text-xs text-purple-700 dark:text-purple-400 truncate max-w-32">
+                {style}
+              </span>
+            )}
+            
+            {/* Energy level */}
+            {energy !== 50 && (
+              <span className={`inline-flex items-center px-2 py-1 rounded text-xs ${
+                energy > 70 
+                  ? 'bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400' 
+                  : 'bg-teal-100 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400'
+              }`}>
+                {energy > 70 ? '⚡ High Energy' : '🌊 Chill'}
+              </span>
+            )}
+          </div>
         </div>
 
         <button

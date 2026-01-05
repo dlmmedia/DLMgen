@@ -22,6 +22,8 @@ export interface StoredSong extends Track {
   bpm?: number;
   keySignature?: string;
   vocalStyle?: string;
+  expectedDuration?: number;
+  actualDuration?: number;
 }
 
 export interface SaveSongParams {
@@ -33,6 +35,8 @@ export interface SaveSongParams {
   audioBase64?: string;
   genre: string;
   duration: number;
+  expectedDuration?: number;
+  actualDuration?: number;
   coverUrl?: string;
   coverBase64?: string;
   lyrics?: string;
@@ -82,6 +86,8 @@ export async function saveSong(params: SaveSongParams): Promise<StoredSong> {
     audioUrl: params.audioUrl,
     genre: params.genre as Track['genre'],
     duration: params.duration,
+    expectedDuration: params.expectedDuration,
+    actualDuration: params.actualDuration,
     coverUrl: params.coverUrl || '',
     lyrics: params.lyrics,
     styleTags: params.styleTags,
@@ -269,6 +275,8 @@ export function trackToSaveParams(
     audioUrl: track.url,
     genre: track.genre,
     duration: track.duration,
+    expectedDuration: track.expectedDuration,
+    actualDuration: track.actualDuration,
     coverUrl: coverBase64 ? undefined : track.coverUrl,
     coverBase64: coverBase64,
     lyrics: track.lyrics,
@@ -289,7 +297,9 @@ export function storedSongToTrack(song: StoredSong): Track {
     url: song.audioUrl || song.url,
     audioUrl: song.audioUrl || song.url,
     genre: song.genre as Track['genre'],
-    duration: song.duration,
+    duration: song.actualDuration || song.duration,
+    expectedDuration: song.expectedDuration,
+    actualDuration: song.actualDuration,
     coverUrl: song.coverUrl,
     lyrics: song.lyrics,
     styleTags: song.styleTags,
