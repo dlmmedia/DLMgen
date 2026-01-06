@@ -173,6 +173,24 @@ export default function App() {
       return;
     }
     
+    // Check for stale blob URLs - these become invalid after page reload
+    // or when the original blob is garbage collected
+    if (url.startsWith('blob:')) {
+      console.warn(`Blob URL detected for track ${trackId}. Blob URLs may become invalid after page reload.`);
+      // Try to validate the blob URL by checking if it's accessible
+      fetch(url, { method: 'HEAD' })
+        .then(response => {
+          if (!response.ok) {
+            console.error(`Stale blob URL for track ${trackId} - audio unavailable. Please regenerate the track.`);
+            alert('This track\'s audio is no longer available. The temporary audio data was lost. Please regenerate the track.');
+          }
+        })
+        .catch(() => {
+          console.error(`Stale blob URL for track ${trackId} - audio unavailable. Please regenerate the track.`);
+          alert('This track\'s audio is no longer available. The temporary audio data was lost. Please regenerate the track.');
+        });
+    }
+    
     // Update the intended track ID to prevent race conditions
     if (trackId) {
       intendedTrackIdRef.current = trackId;
@@ -209,7 +227,18 @@ export default function App() {
           attemptPlay();
         };
         
+        // Handle load errors for invalid blob URLs
+        const onError = () => {
+          audioEl.removeEventListener('error', onError);
+          audioEl.removeEventListener('canplay', onCanPlay);
+          console.error(`Failed to load audio for track ${trackId}: Format error or invalid URL`);
+          if (url.startsWith('blob:')) {
+            alert('Failed to load audio. The temporary audio data may have expired. Please regenerate the track.');
+          }
+        };
+        
         audioEl.addEventListener('canplay', onCanPlay, { once: true });
+        audioEl.addEventListener('error', onError, { once: true });
         audioEl.src = url;
         audioEl.load();
       } else {

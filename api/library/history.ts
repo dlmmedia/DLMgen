@@ -50,6 +50,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing required field: songId' });
       }
 
+      // Check if the song exists in the database
+      // Generated songs may not exist yet, and pre-built tracks are not in the DB
+      const songExists = await sql`
+        SELECT id FROM songs WHERE id = ${songId} LIMIT 1
+      `;
+
+      if (songExists.length === 0) {
+        // Song doesn't exist in database - this is normal for pre-built tracks
+        // Return success without inserting (history is also tracked in localStorage)
+        return res.status(200).json({
+          success: true,
+          message: 'History tracked locally only (song not in database)',
+          isLocalOnly: true,
+        });
+      }
+
       // Add new entry
       await sql`
         INSERT INTO play_history (song_id, played_at)
