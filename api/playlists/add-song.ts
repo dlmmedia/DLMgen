@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql } from '../lib/db';
+import { sql } from '../lib/db.js';
 
 interface AddSongRequest {
   playlistId: string;

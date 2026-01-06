@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, isDatabaseConfigured } from '../lib/db';
+import { sql, isDatabaseConfigured } from '../lib/db.js';
 
 const HISTORY_MAX_ENTRIES = 100;
 

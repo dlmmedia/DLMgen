@@ -1,4 +1,4 @@
-import { neon, NeonQueryFunction } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 
 // Check if DATABASE_URL is configured
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -12,39 +12,24 @@ const DATABASE_URL = process.env.DATABASE_URL;
  * 2. Add DATABASE_URL with your Neon connection string
  * 3. The format should be: postgresql://user:password@host/database?sslmode=require
  */
-function createDbConnection(): NeonQueryFunction<false, false> {
-  if (!DATABASE_URL) {
-    console.error('[DB] CRITICAL: DATABASE_URL environment variable is not set');
-    console.error('[DB] Please configure DATABASE_URL in Vercel Environment Variables');
-    // Return a tagged template function that throws helpful errors when invoked
-    const errorFn = function(strings: TemplateStringsArray, ..._values: unknown[]): Promise<never> {
-      console.error('[DB] Attempted to query database without DATABASE_URL configured');
-      console.error('[DB] Query template:', strings[0]?.substring(0, 100));
-      return Promise.reject(new Error(
-        'Database not configured. Please set DATABASE_URL environment variable in Vercel. ' +
-        'Go to: Vercel Dashboard > Project Settings > Environment Variables'
-      ));
-    };
-    return errorFn as unknown as NeonQueryFunction<false, false>;
-  }
-  
-  try {
-    console.log('[DB] Initializing database connection...');
-    const connection = neon(DATABASE_URL);
-    console.log('[DB] Database connection initialized successfully');
-    return connection;
-  } catch (error) {
-    console.error('[DB] Failed to initialize database connection:', error);
-    throw error;
-  }
-}
-
-export const sql = createDbConnection();
 
 // Helper to check if database is configured
 export function isDatabaseConfigured(): boolean {
   return !!DATABASE_URL;
 }
+
+// Create the database connection
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const sql: any = DATABASE_URL 
+  ? neon(DATABASE_URL)
+  : function(_strings: TemplateStringsArray, ..._values: unknown[]): Promise<never> {
+      console.error('[DB] CRITICAL: DATABASE_URL environment variable is not set');
+      console.error('[DB] Please configure DATABASE_URL in Vercel Environment Variables');
+      return Promise.reject(new Error(
+        'Database not configured. Please set DATABASE_URL environment variable in Vercel. ' +
+        'Go to: Vercel Dashboard > Project Settings > Environment Variables'
+      ));
+    };
 
 // Re-export for convenience
 export { neon };
