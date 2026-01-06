@@ -167,6 +167,12 @@ export default function App() {
     const audioEl = audioRef.current;
     if (!audioEl) return;
     
+    // Validate URL before attempting playback
+    if (!url || url === 'undefined' || url === 'null') {
+      console.error(`Invalid audio URL for track ${trackId}`);
+      return;
+    }
+    
     // Update the intended track ID to prevent race conditions
     if (trackId) {
       intendedTrackIdRef.current = trackId;
@@ -177,18 +183,41 @@ export default function App() {
     // to avoid autoplay restrictions (esp. Safari/iOS).
     void ensureAudioGraph();
 
-    try {
-      // Force the media element to have the right source *within the user gesture*
-      // so `play()` isn't blocked and the analyser receives data immediately.
-      const currentSrc = audioEl.getAttribute('src');
-      if (currentSrc !== url) {
-        console.log(`Loading audio for track ${trackId || 'unknown'}: ${url.substring(0, 50)}...`);
-        audioEl.setAttribute('src', url);
-        audioEl.load();
+    const attemptPlay = () => {
+      // Only play if this is still the intended track
+      if (trackId && intendedTrackIdRef.current !== trackId) {
+        console.log(`Skipping play for ${trackId}, track changed to ${intendedTrackIdRef.current}`);
+        return;
       }
-      void audioEl.play();
+      
+      audioEl.play().catch(e => {
+        console.warn('Audio play failed:', e);
+      });
+    };
+
+    try {
+      // Check if we need to load a new source
+      const currentSrc = audioEl.src;
+      const needsNewSource = !currentSrc || !currentSrc.includes(url.split('?')[0].slice(-20));
+      
+      if (needsNewSource) {
+        console.log(`Loading audio for track ${trackId || 'unknown'}: ${url.substring(0, 80)}...`);
+        
+        // Set up event listener before changing source
+        const onCanPlay = () => {
+          audioEl.removeEventListener('canplay', onCanPlay);
+          attemptPlay();
+        };
+        
+        audioEl.addEventListener('canplay', onCanPlay, { once: true });
+        audioEl.src = url;
+        audioEl.load();
+      } else {
+        // Source is already correct, just play
+        attemptPlay();
+      }
     } catch (e) {
-      console.warn('Audio play failed:', e);
+      console.warn('Audio setup failed:', e);
     }
   }, [ensureAudioGraph]);
 
@@ -967,7 +996,7 @@ export default function App() {
             pauseNow();
             setIsPlaying(false);
           } else {
-            void playUrlNow(audioSource);
+            void playUrlNow(audioSource, currentTrack.id);
             setIsPlaying(true);
           }
         }}

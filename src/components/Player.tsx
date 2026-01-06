@@ -17,38 +17,71 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
   const audioRef = externalAudioRef || internalAudioRef;
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isAudioReady, setIsAudioReady] = useState(false);
   
   // Track the ID of the audio currently loaded to prevent mismatch
   const loadedTrackIdRef = useRef<string | null>(null);
   const lastTrackIdRef = useRef<string | null>(null);
+
+  // Get the audio source URL from the current track
+  const audioSource = currentTrack?.audioUrl || currentTrack?.url || '';
 
   // Handle track changes - ensure audio source matches current track
   useEffect(() => {
     const audioEl = audioRef.current;
     if (!audioEl || !currentTrack) return;
     
-    const audioSource = currentTrack.audioUrl || currentTrack.url;
-    
     // Only update source if track actually changed
     if (lastTrackIdRef.current !== currentTrack.id) {
       console.log(`Player: Loading new track ${currentTrack.id}`);
       lastTrackIdRef.current = currentTrack.id;
       loadedTrackIdRef.current = null; // Mark as loading
+      setIsAudioReady(false);
       
       // Reset progress when loading new track
       setProgress(0);
       setDuration(0);
+      
+      // Set the audio source directly
+      const newSource = currentTrack.audioUrl || currentTrack.url;
+      if (newSource && audioEl.src !== newSource) {
+        console.log(`Player: Setting audio source for track ${currentTrack.id}`);
+        audioEl.src = newSource;
+        audioEl.load();
+      }
     }
   }, [currentTrack, audioRef]);
 
+  // Handle play/pause - only when audio is ready
   useEffect(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.play().catch(e => console.error("Playback failed", e));
-    } else {
-      audioRef.current.pause();
+    const audioEl = audioRef.current;
+    if (!audioEl) return;
+    
+    // Don't try to play if there's no source
+    if (!audioEl.src || audioEl.src === window.location.href) {
+      return;
     }
-  }, [isPlaying, audioRef]);
+    
+    if (isPlaying) {
+      // Use canplay event to ensure audio is ready before playing
+      const playWhenReady = () => {
+        audioEl.play().catch(e => {
+          console.error("Playback failed:", e);
+        });
+      };
+      
+      // If audio is already ready, play immediately
+      if (audioEl.readyState >= 2) { // HAVE_CURRENT_DATA or higher
+        playWhenReady();
+      } else {
+        // Wait for canplay event
+        audioEl.addEventListener('canplay', playWhenReady, { once: true });
+        return () => audioEl.removeEventListener('canplay', playWhenReady);
+      }
+    } else {
+      audioEl.pause();
+    }
+  }, [isPlaying, audioRef, audioSource]);
 
   const handleTimeUpdate = useCallback(() => {
     if (audioRef.current) {
@@ -62,15 +95,26 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
     if (currentTrack && audioRef.current) {
       loadedTrackIdRef.current = currentTrack.id;
       setDuration(audioRef.current.duration || 0);
+      setIsAudioReady(true);
       console.log(`Player: Track ${currentTrack.id} loaded, duration: ${audioRef.current.duration}s`);
     }
   }, [currentTrack, audioRef]);
   
+  // Handle canplaythrough for smooth playback
+  const handleCanPlayThrough = useCallback(() => {
+    setIsAudioReady(true);
+  }, []);
+  
   // Handle audio errors
   const handleError = useCallback((e: Event) => {
-    console.error('Player: Audio error', e);
+    const audioEl = audioRef.current;
+    const errorDetails = audioEl?.error 
+      ? `Code ${audioEl.error.code}: ${audioEl.error.message}` 
+      : 'Unknown error';
+    console.error(`Player: Audio error for track ${currentTrack?.id}:`, errorDetails);
     loadedTrackIdRef.current = null;
-  }, []);
+    setIsAudioReady(false);
+  }, [currentTrack, audioRef]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = Number(e.target.value);
@@ -91,8 +135,11 @@ export const Player: React.FC<PlayerProps> = ({ currentTrack, isPlaying, onPlayP
     <div className="fixed bottom-0 left-0 right-0 h-24 bg-white/90 dark:bg-black/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 px-4 md:px-8 flex items-center justify-between z-50">
       <audio
         ref={audioRef}
+        src={audioSource || undefined}
+        preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onLoadedData={handleLoadedData}
+        onCanPlayThrough={handleCanPlayThrough}
         onError={handleError as any}
         onEnded={onEnded}
         data-track-id={currentTrack?.id || ''}

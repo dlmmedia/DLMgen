@@ -49,6 +49,8 @@ interface SceneState {
     aurora: THREE.Points | null;
     starSystem: THREE.Points;
     nebulaSystem: THREE.Points;
+    orbsGroup: THREE.Group | null;
+    textSpawnTime: number;
     animationId: number;
     resizeObserver: ResizeObserver | null;
     windowResizeHandler: (() => void) | null;
@@ -257,14 +259,24 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
             high: { value: 0 }
         };
 
-        const ambient = new THREE.AmbientLight(0xffd7d0, 0.42);
+        const ambient = new THREE.AmbientLight(0xffd7d0, 0.48);
         scene.add(ambient);
-        const keyLight = new THREE.PointLight(0xff6b6b, 2.2, 200);
-        keyLight.position.set(0, 10, 24);
+        const keyLight = new THREE.PointLight(0xff6b6b, 2.4, 220);
+        keyLight.position.set(0, 12, 28);
         scene.add(keyLight);
-        const rimLight = new THREE.PointLight(0xff9f66, 1.1, 180);
-        rimLight.position.set(-30, -10, -20);
+        const rimLight = new THREE.PointLight(0xff9f66, 1.3, 200);
+        rimLight.position.set(-35, -12, -25);
         scene.add(rimLight);
+        
+        // Additional rim light for orb reflections
+        const orbRimLight = new THREE.PointLight(0xffaa88, 1.6, 150);
+        orbRimLight.position.set(25, 8, 15);
+        scene.add(orbRimLight);
+        
+        // Back rim light for depth and silhouette
+        const backRimLight = new THREE.PointLight(0xff5566, 0.9, 180);
+        backRimLight.position.set(0, -15, -40);
+        scene.add(backRimLight);
 
         const starCount = 4200;
         const starGeo = new THREE.BufferGeometry();
@@ -462,6 +474,61 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
         }));
         scene.add(aurora);
 
+        // Create floating orbs with reflective materials
+        const orbsGroup = new THREE.Group();
+        const orbCount = 22;
+        for (let i = 0; i < orbCount; i++) {
+            const orbRadius = 0.6 + Math.random() * 1.0;
+            const geo = new THREE.SphereGeometry(orbRadius, 32, 32);
+            
+            // Varied warm cosmic colors for each orb
+            const colorChoice = Math.random();
+            let orbColor, orbEmissive;
+            if (colorChoice < 0.35) {
+                orbColor = 0xffeedd;
+                orbEmissive = new THREE.Color(0xff6b6b);
+            } else if (colorChoice < 0.65) {
+                orbColor = 0xfff0e6;
+                orbEmissive = new THREE.Color(0xff8866);
+            } else {
+                orbColor = 0xffe8e0;
+                orbEmissive = new THREE.Color(0xcc5555);
+            }
+            
+            const mat = new THREE.MeshStandardMaterial({
+                color: orbColor,
+                emissive: orbEmissive,
+                emissiveIntensity: 0.5 + Math.random() * 0.3,
+                metalness: 0.65 + Math.random() * 0.2,
+                roughness: 0.15 + Math.random() * 0.15,
+                transparent: true,
+                opacity: 0, // Start invisible, fade in later
+                toneMapped: false,
+            });
+            
+            const orb = new THREE.Mesh(geo, mat);
+            
+            // Distribute orbs in a sphere around the focal point
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const r = 12 + Math.random() * 28;
+            
+            orb.position.set(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta) - 4,
+                r * Math.cos(phi) - 18
+            );
+            
+            // Store base position and random phase for animation
+            orb.userData.basePos = orb.position.clone();
+            orb.userData.phase = Math.random() * Math.PI * 2;
+            orb.userData.floatSpeed = 0.3 + Math.random() * 0.4;
+            orb.userData.floatAmplitude = 1.5 + Math.random() * 2;
+            
+            orbsGroup.add(orb);
+        }
+        scene.add(orbsGroup);
+
         sceneRef.current = {
             scene,
             camera,
@@ -475,6 +542,8 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
             aurora,
             starSystem,
             nebulaSystem,
+            orbsGroup,
+            textSpawnTime: 0, // Will be set when text is created
             animationId: 0,
             resizeObserver: null,
             windowResizeHandler: null,
@@ -567,13 +636,6 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
         let smoothBass = 0, smoothMid = 0, smoothHigh = 0;
         let lastTime = performance.now();
         
-        // Cinematic camera orbit state
-        let cameraOrbitAngle = 0;
-        let cameraOrbitRadius = 110;
-        let targetOrbitRadius = 110;
-        let cameraHeight = 0;
-        let targetHeight = 0;
-        let cameraRoll = 0;
 
         // Do an initial render immediately so something is visible
         renderer.render(scene, camera);
@@ -769,42 +831,84 @@ export const HeroVisualizer: React.FC<HeroVisualizerProps> = ({ isPlaying, analy
                 }
 
                 if (currentTextMesh) {
-                    currentTextMesh.scale.setScalar(1 + smoothBass * 0.35);
-                    currentTextMesh.position.y = -2 + Math.sin(time * 1.2) * 1.5 + smoothMid * 3;
-                    currentTextMesh.rotation.y = Math.sin(time * 0.5) * 0.12;
                     const mat = currentTextMesh.material as THREE.MeshStandardMaterial;
-                    mat.emissiveIntensity = 0.8 + smoothBass * 2;
-                    mat.color.setHSL(0.02 + smoothHigh * 0.12, 0.8, 0.72);
+                    
+                    // Smooth text animations with music reactivity
+                    currentTextMesh.scale.setScalar(1 + smoothBass * 0.25);
+                    currentTextMesh.position.y = -2 + Math.sin(time * 0.8) * 1.2 + smoothMid * 2;
+                    currentTextMesh.rotation.y = Math.sin(time * 0.4) * 0.08;
+                    
+                    // Material properties with music reactivity
+                    mat.emissiveIntensity = 0.8 + smoothBass * 1.5;
+                    mat.opacity = 0.95;
+                    mat.color.setHSL(0.02 + smoothHigh * 0.08, 0.75, 0.75);
                 }
 
-                // Cinematic orbital camera with music-reactive dolly and roll
-                // Slow orbit with music-reactive speed boost
-                const orbitSpeed = 0.06 + smoothMid * 0.1 + smoothBass * 0.08;
-                cameraOrbitAngle += delta * orbitSpeed;
+                // Animate floating orbs with gentle motion and staggered fade-in
+                const currentOrbsGroup = state.orbsGroup;
+                if (currentOrbsGroup) {
+                    currentOrbsGroup.children.forEach((orb, i) => {
+                        const mesh = orb as THREE.Mesh;
+                        const userData = mesh.userData;
+                        const basePos = userData.basePos as THREE.Vector3;
+                        const phase = userData.phase as number;
+                        const floatSpeed = userData.floatSpeed as number;
+                        const floatAmplitude = userData.floatAmplitude as number;
+                        
+                        // Gentle floating motion with music reactivity
+                        const floatOffset = Math.sin(time * floatSpeed + phase) * floatAmplitude;
+                        const floatOffsetX = Math.cos(time * floatSpeed * 0.7 + phase) * floatAmplitude * 0.5;
+                        const floatOffsetZ = Math.sin(time * floatSpeed * 0.5 + phase * 1.3) * floatAmplitude * 0.3;
+                        
+                        // Add subtle music reactivity to position
+                        const bassLift = smoothBass * 2;
+                        const midDrift = smoothMid * 1.5;
+                        
+                        mesh.position.set(
+                            basePos.x + floatOffsetX + midDrift * Math.sin(phase),
+                            basePos.y + floatOffset + bassLift,
+                            basePos.z + floatOffsetZ
+                        );
+                        
+                        // Gentle rotation
+                        mesh.rotation.x += delta * 0.15;
+                        mesh.rotation.y += delta * 0.2;
+                        
+                        // Gentle staggered fade-in of orbs
+                        const mat = mesh.material as THREE.MeshStandardMaterial;
+                        const staggerDelay = i * 0.15;
+                        const orbFadeStart = 2 + staggerDelay; // Start fading in after 2 seconds
+                        const orbFadeProgress = Math.max(0, Math.min(1, (time - orbFadeStart) / 3));
+                        
+                        mat.opacity = orbFadeProgress * (0.75 + smoothBass * 0.25);
+                        mat.emissiveIntensity = (0.5 + smoothBass * 0.8) * orbFadeProgress;
+                        
+                        // Subtle scale pulse with music
+                        const scalePulse = 1 + smoothBass * 0.15 + smoothHigh * 0.08;
+                        mesh.scale.setScalar(scalePulse * orbFadeProgress);
+                    });
+                }
+
+                // Subtle pendulum camera motion - always stays in front of scene
+                // Gentle side-to-side sway with music reactivity
+                const swayAmplitude = 12 + smoothBass * 4;
+                const swayX = Math.sin(time * 0.25) * swayAmplitude;
                 
-                // Dynamic radius: pull in on bass hits for dramatic effect
-                targetOrbitRadius = 115 - smoothBass * 30;
-                cameraOrbitRadius += (targetOrbitRadius - cameraOrbitRadius) * 0.05;
+                // Breathing Z motion - never goes behind text (text is at z=-8)
+                const breatheZ = 95 + Math.sin(time * 0.18) * 10 - smoothBass * 8;
                 
-                // Vertical wave with high-frequency lift
-                targetHeight = Math.sin(time * 0.25) * 12 + smoothHigh * 10;
-                cameraHeight += (targetHeight - cameraHeight) * 0.04;
+                // Vertical breathing motion synced to music
+                const breatheY = Math.sin(time * 0.22) * 5 + smoothHigh * 4;
                 
-                // Subtle roll for cinematic feel
-                cameraRoll = Math.sin(time * 0.15) * 0.04 + smoothBass * 0.02;
+                // Apply camera position - always stays in front
+                currentCamera.position.set(swayX, breatheY, Math.max(70, breatheZ));
                 
-                // Apply orbital position
-                currentCamera.position.x = Math.sin(cameraOrbitAngle) * cameraOrbitRadius * 0.25;
-                currentCamera.position.z = Math.cos(cameraOrbitAngle) * cameraOrbitRadius;
-                currentCamera.position.y = cameraHeight;
+                // Gentle look-at with subtle music reactivity
+                const lookAtY = smoothBass * 3 - 1;
+                currentCamera.lookAt(0, lookAtY, -10);
                 
-                // Look at dynamic focal point with bass-reactive lift
-                const lookAtY = smoothBass * 8 - 2;
-                const lookAtZ = 30 + smoothMid * 20;
-                currentCamera.lookAt(0, lookAtY, lookAtZ);
-                
-                // Apply roll after lookAt
-                currentCamera.rotation.z += cameraRoll;
+                // Very subtle roll for cinematic feel
+                currentCamera.rotation.z = Math.sin(time * 0.12) * 0.015;
 
                 currentRenderer.render(currentScene, currentCamera);
             } catch (e) {
