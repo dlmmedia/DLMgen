@@ -222,10 +222,25 @@ function buildElevenLabsPrompt(params: CreateSongParams): string {
 }
 
 /**
- * Generate a music track using ElevenLabs API
- * Returns the audio as a Blob
+ * Response from the ElevenLabs generation API
+ * Audio is saved to Vercel Blob immediately - we get a permanent URL back
  */
-export async function generateElevenLabsTrack(params: CreateSongParams): Promise<Blob> {
+export interface GenerationResult {
+    audioUrl: string;  // Permanent Vercel Blob URL
+    songId: string;    // Unique ID for this song
+    duration: number;  // Duration in seconds
+    size: number;      // File size in bytes
+}
+
+/**
+ * Generate a music track using ElevenLabs API
+ * 
+ * IMPORTANT: Audio is saved directly to Vercel Blob storage on the server
+ * to ensure songs are never lost. Returns a permanent URL, not a temporary blob.
+ * 
+ * @returns GenerationResult with permanent audioUrl from Vercel Blob
+ */
+export async function generateElevenLabsTrack(params: CreateSongParams): Promise<GenerationResult> {
     // Build the optimized prompt
     const prompt = buildElevenLabsPrompt(params);
     
@@ -234,7 +249,11 @@ export async function generateElevenLabsTrack(params: CreateSongParams): Promise
         throw new Error("Prompt is required for music generation");
     }
     
+    // Generate song ID upfront so we can track it
+    const songId = `gen-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    
     console.log('ElevenLabs Generation Request:', {
+        songId,
         prompt: prompt.substring(0, 200) + (prompt.length > 200 ? '...' : ''),
         duration: params.durationSeconds,
         instrumental: params.isInstrumental
@@ -251,7 +270,8 @@ export async function generateElevenLabsTrack(params: CreateSongParams): Promise
                 prompt: prompt,
                 duration_seconds: params.durationSeconds || 60,
                 instrumental: params.isInstrumental,
-                output_format: 'mp3_44100_128'
+                output_format: 'mp3_44100_128',
+                songId: songId  // Pass the ID so server uses it for storage
             }),
         });
     } catch (fetchError) {
@@ -279,6 +299,10 @@ export async function generateElevenLabsTrack(params: CreateSongParams): Promise
             throw new Error('Failed to connect to ElevenLabs API. Please check your internet connection and API key.');
         }
         
+        if (errorData.code === 'BLOB_STORAGE_ERROR') {
+            throw new Error('Failed to save generated audio permanently. Please try again.');
+        }
+        
         // Handle prompt suggestions from ElevenLabs
         if (errorData.suggestion) {
             throw new Error(`${errorData.error}. Suggested prompt: ${errorData.suggestion}`);
@@ -287,7 +311,26 @@ export async function generateElevenLabsTrack(params: CreateSongParams): Promise
         throw new Error(errorData.error || `Failed to generate music via ElevenLabs (Status: ${response.status})`);
     }
 
-    return await response.blob();
+    // Parse JSON response with permanent blob URL
+    const result = await response.json();
+    
+    if (!result.success || !result.audioUrl) {
+        throw new Error('Invalid response from generation API - no audio URL returned');
+    }
+    
+    console.log('ElevenLabs Generation Complete:', {
+        songId: result.songId,
+        audioUrl: result.audioUrl,
+        duration: result.duration,
+        size: result.size
+    });
+    
+    return {
+        audioUrl: result.audioUrl,
+        songId: result.songId,
+        duration: result.duration,
+        size: result.size
+    };
 }
 
 /**

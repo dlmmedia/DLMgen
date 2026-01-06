@@ -463,9 +463,10 @@ export default function App() {
 
       // Step 2: Composing melody
       setGenerationStep(1);
-      let audioUrl = "";
 
       // Step 3: Generating vocals (or instrumental) via ElevenLabs
+      // IMPORTANT: Audio is saved to Vercel Blob immediately during generation
+      // to ensure it's never lost. We get a permanent URL back, not a blob.
       setGenerationStep(2);
       
       // Build params for ElevenLabs - use Gemini-generated content for Simple mode
@@ -477,18 +478,19 @@ export default function App() {
         customTitle: params.customTitle || metadata.title,
       };
       
-      const blob = await generateElevenLabsTrack(elevenLabsParams);
-      audioUrl = URL.createObjectURL(blob);
+      // Generate track - audio is automatically saved to Vercel Blob on the server
+      const generationResult = await generateElevenLabsTrack(elevenLabsParams);
+      
+      // CRITICAL: audioUrl is now a permanent Vercel Blob URL, not a temporary blob: URL
+      // This ensures the audio is already safely stored before we proceed
+      const audioUrl = generationResult.audioUrl;
+      const newTrackId = generationResult.songId;
+      
+      console.log(`Audio permanently stored at: ${audioUrl}`);
 
-      // Extract actual duration from the generated audio
-      let actualDuration: number;
-      try {
-        actualDuration = await getAudioDuration(blob);
-        console.log(`Audio duration: actual=${actualDuration}s, expected=${params.durationSeconds}s`);
-      } catch (durationError) {
-        console.warn('Could not extract audio duration, using expected value:', durationError);
-        actualDuration = params.durationSeconds;
-      }
+      // Use duration from generation result, or fall back to requested duration
+      const actualDuration = generationResult.duration || params.durationSeconds;
+      console.log(`Audio duration: actual=${actualDuration}s, expected=${params.durationSeconds}s`);
 
       // Step 4: Mastering audio / generating album art
       setGenerationStep(3);
@@ -497,7 +499,6 @@ export default function App() {
 
       // Step 5: Finalizing
       setGenerationStep(4);
-      const newTrackId = `gen-${Date.now()}`;
       
       // Sanitize lyrics to remove any mock content or metadata tags
       const cleanedLyrics = sanitizeLyrics(metadata.lyrics);
@@ -523,25 +524,22 @@ export default function App() {
         createdAt: Date.now()
       };
 
-      // Save to Vercel Blob storage
-      try {
-        const saveParams = trackToSaveParams(newTrack, isBase64Cover ? coverUrl : undefined);
-        const savedSong = await saveSong(saveParams);
-        
-        // Update track with persisted URLs from cloud storage
-        if (savedSong.coverUrl) {
-          newTrack.coverUrl = savedSong.coverUrl;
-        }
-        if (savedSong.audioUrl && !savedSong.audioUrl.startsWith('blob:')) {
-          // Update to the permanent URL from cloud storage
-          newTrack.url = savedSong.audioUrl;
-          newTrack.audioUrl = savedSong.audioUrl;
-          console.log('Audio URL updated to permanent storage:', savedSong.audioUrl);
-        }
-        console.log('Song saved to Vercel Blob:', savedSong);
-      } catch (saveError) {
-        console.error('Failed to save to Blob storage, keeping in local state:', saveError);
+      // Save song metadata to database
+      // CRITICAL: Audio is already permanently stored in Vercel Blob from generation.
+      // This save operation stores metadata and cover art. It MUST succeed.
+      const saveParams = trackToSaveParams(newTrack, isBase64Cover ? coverUrl : undefined);
+      const savedSong = await saveSong(saveParams);
+      
+      // Update track with persisted URLs from cloud storage (cover may have been uploaded)
+      if (savedSong.coverUrl) {
+        newTrack.coverUrl = savedSong.coverUrl;
       }
+      // Audio URL should already be permanent, but update if server returned a different one
+      if (savedSong.audioUrl) {
+        newTrack.url = savedSong.audioUrl;
+        newTrack.audioUrl = savedSong.audioUrl;
+      }
+      console.log('Song metadata saved successfully:', savedSong.id);
 
       setGeneratedTracks(prev => [newTrack, ...prev]);
       setCurrentTrack(newTrack);
@@ -570,7 +568,14 @@ export default function App() {
         } 
         else if (error.message.includes("Server configuration error") || error.message.includes("MISSING_API_KEY")) {
           errorMessage = "Server configuration error: ELEVENLABS_API_KEY is not set.";
-        } 
+        }
+        else if (error.message.includes("Failed to save") || error.message.includes("save song")) {
+          // Save failures are now critical - audio is stored but metadata save failed
+          errorMessage = "Failed to save song metadata. The audio was generated but metadata could not be saved. Please try again.";
+        }
+        else if (error.message.includes("BLOB_STORAGE_ERROR")) {
+          errorMessage = "Failed to save the generated audio permanently. Please check your Vercel Blob storage configuration and try again.";
+        }
         else {
           errorMessage = error.message || errorMessage;
         }

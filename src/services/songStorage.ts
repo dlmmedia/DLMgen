@@ -1,8 +1,13 @@
 /**
  * Song Storage Service - Client-side API for managing songs
  * All data is persisted in Neon Postgres via Vercel Edge Functions
- * Audio and cover files are stored in Vercel Blob
+ * Audio files are stored in Vercel Blob IMMEDIATELY during generation
+ * Cover files are uploaded when saving metadata
  * With localStorage backup for offline resilience
+ * 
+ * IMPORTANT: Audio is now saved to Vercel Blob during the generation step,
+ * ensuring songs are never lost. This service primarily handles metadata
+ * persistence with retry logic for reliability.
  */
 
 import { Track } from '../types';
@@ -16,6 +21,13 @@ import {
 
 // Get API base URL
 const getApiBase = () => '/api';
+
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
+
+// Storage key for failed saves that need manual recovery
+const FAILED_SAVES_KEY = 'dlm-failed-saves';
 
 export interface StoredSong extends Track {
   createdAt: number;
@@ -31,8 +43,6 @@ export interface SaveSongParams {
   title: string;
   artist: string;
   audioUrl: string;
-  audioBlob?: Blob;
-  audioBase64?: string;
   genre: string;
   duration: number;
   expectedDuration?: number;
@@ -49,33 +59,78 @@ export interface SaveSongParams {
 }
 
 /**
- * Convert blob URL to base64 for storage
+ * Helper to delay execution (for retry backoff)
  */
-async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Store a failed save for later recovery
+ */
+function storeFailedSave(params: SaveSongParams, error: string): void {
   try {
-    if (!blobUrl.startsWith('blob:')) return null;
-    
-    const response = await fetch(blobUrl);
-    const blob = await response.blob();
-    
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
+    const failedSaves = JSON.parse(localStorage.getItem(FAILED_SAVES_KEY) || '[]');
+    // Avoid duplicates
+    const existing = failedSaves.findIndex((s: SaveSongParams) => s.id === params.id);
+    if (existing >= 0) {
+      failedSaves[existing] = { ...params, failedAt: Date.now(), error };
+    } else {
+      failedSaves.push({ ...params, failedAt: Date.now(), error });
+    }
+    // Keep only last 50 failed saves
+    const limited = failedSaves.slice(-50);
+    localStorage.setItem(FAILED_SAVES_KEY, JSON.stringify(limited));
+    console.warn(`[SongStorage] Stored failed save for recovery: ${params.id}`);
   } catch (e) {
-    console.error('Failed to convert blob URL to base64:', e);
-    return null;
+    console.error('[SongStorage] Could not store failed save:', e);
   }
 }
 
 /**
- * Save a generated song to Neon Postgres + Vercel Blob storage
- * Also caches locally for persistence
+ * Get failed saves for manual recovery
+ */
+export function getFailedSaves(): SaveSongParams[] {
+  try {
+    return JSON.parse(localStorage.getItem(FAILED_SAVES_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Clear a failed save after successful retry
+ */
+function clearFailedSave(id: string): void {
+  try {
+    const failedSaves = JSON.parse(localStorage.getItem(FAILED_SAVES_KEY) || '[]');
+    const filtered = failedSaves.filter((s: SaveSongParams) => s.id !== id);
+    localStorage.setItem(FAILED_SAVES_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.error('[SongStorage] Could not clear failed save:', e);
+  }
+}
+
+/**
+ * Save a generated song to Neon Postgres database
+ * 
+ * IMPORTANT: Audio should already be stored in Vercel Blob from the generate endpoint.
+ * This function saves metadata and cover images with retry logic for reliability.
+ * 
+ * The function will:
+ * 1. Cache locally immediately for offline resilience
+ * 2. Attempt to save to the server with retries
+ * 3. Store failed saves for later recovery if all retries fail
+ * 4. THROW an error if save fails (no silent failures)
  */
 export async function saveSong(params: SaveSongParams): Promise<StoredSong> {
   const createdAt = Date.now();
+  
+  // Validate that audio URL is not a temporary blob URL
+  if (params.audioUrl && params.audioUrl.startsWith('blob:')) {
+    console.error('[SongStorage] CRITICAL: Received temporary blob URL - audio should be saved during generation');
+    throw new Error('Cannot save song with temporary blob URL. Audio must be stored permanently first.');
+  }
   
   // Create an optimistic local song object
   const localSong: StoredSong = {
@@ -101,55 +156,127 @@ export async function saveSong(params: SaveSongParams): Promise<StoredSong> {
   
   // Save to local cache immediately for persistence
   addSongToCache(localSong);
-  console.log('Song cached locally:', localSong.id);
+  console.log('[SongStorage] Song cached locally:', localSong.id);
   
-  // Convert audio blob URL to base64 if it's a blob URL
-  let audioBase64: string | null = null;
-  if (params.audioUrl && params.audioUrl.startsWith('blob:')) {
-    console.log('Converting audio blob to base64 for persistence...');
-    audioBase64 = await blobUrlToBase64(params.audioUrl);
-    if (audioBase64) {
-      console.log('Audio converted to base64 successfully, size:', Math.round(audioBase64.length / 1024), 'KB');
+  // Attempt to save with retries
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[SongStorage] Saving song ${params.id} (attempt ${attempt}/${MAX_RETRIES})...`);
+      
+      const response = await fetch(`${getApiBase()}/songs/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...params,
+          createdAt,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `API returned status ${response.status}`;
+        
+        // Don't retry client errors (4xx) - they won't succeed on retry
+        if (response.status >= 400 && response.status < 500) {
+          throw new Error(errorMessage);
+        }
+        
+        // Server errors (5xx) may be transient, so retry
+        lastError = new Error(errorMessage);
+        console.warn(`[SongStorage] Save attempt ${attempt} failed:`, errorMessage);
+        
+        if (attempt < MAX_RETRIES) {
+          const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+          console.log(`[SongStorage] Retrying in ${retryDelay}ms...`);
+          await delay(retryDelay);
+          continue;
+        }
+      } else {
+        // Success!
+        const data = await response.json();
+        const savedSong = data.song as StoredSong;
+        
+        // Ensure url field is set
+        savedSong.url = savedSong.audioUrl || savedSong.url;
+        
+        // Update local cache with server response (may have different URLs for cover)
+        addSongToCache(savedSong);
+        
+        // Clear any previous failed save for this song
+        clearFailedSave(savedSong.id);
+        
+        console.log('[SongStorage] Song saved successfully:', savedSong.id);
+        console.log('[SongStorage] Audio URL:', savedSong.audioUrl);
+        
+        return savedSong;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`[SongStorage] Save attempt ${attempt} error:`, lastError.message);
+      
+      // Don't retry for certain error types
+      if (lastError.message.includes('temporary blob URL') ||
+          lastError.message.includes('Missing required') ||
+          lastError.message.includes('INVALID_AUDIO_URL')) {
+        break;
+      }
+      
+      if (attempt < MAX_RETRIES) {
+        const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        console.log(`[SongStorage] Retrying in ${retryDelay}ms...`);
+        await delay(retryDelay);
+      }
     }
   }
   
-  try {
-    const response = await fetch(`${getApiBase()}/songs/save`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...params,
-        audioBase64: audioBase64 || params.audioBase64,
-        createdAt,
-      }),
-    });
+  // All retries exhausted - store for manual recovery and throw
+  console.error(`[SongStorage] CRITICAL: All save attempts failed for song ${params.id}`);
+  storeFailedSave(params, lastError?.message || 'Unknown error');
+  
+  // IMPORTANT: We throw here instead of silently returning the local song
+  // This ensures the caller knows the save failed
+  throw new Error(`Failed to save song after ${MAX_RETRIES} attempts: ${lastError?.message || 'Unknown error'}`);
+}
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API returned status ${response.status}`);
+/**
+ * Retry saving a failed song (for manual recovery)
+ */
+export async function retrySaveSong(params: SaveSongParams): Promise<StoredSong> {
+  console.log(`[SongStorage] Retrying save for song: ${params.id}`);
+  return saveSong(params);
+}
+
+/**
+ * Retry all failed saves
+ * Returns array of results: { id, success, error? }
+ */
+export async function retryAllFailedSaves(): Promise<Array<{ id: string; success: boolean; error?: string }>> {
+  const failedSaves = getFailedSaves();
+  const results: Array<{ id: string; success: boolean; error?: string }> = [];
+  
+  console.log(`[SongStorage] Retrying ${failedSaves.length} failed saves...`);
+  
+  for (const save of failedSaves) {
+    try {
+      await retrySaveSong(save);
+      results.push({ id: save.id, success: true });
+    } catch (error) {
+      results.push({ 
+        id: save.id, 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
     }
-
-    const data = await response.json();
-    const savedSong = data.song as StoredSong;
-    
-    // Ensure url field is set
-    savedSong.url = savedSong.audioUrl || savedSong.url;
-    
-    // Update local cache with server response (may have different URLs)
-    addSongToCache(savedSong);
-    
-    console.log('Song saved successfully:', savedSong.id);
-    console.log('Audio URL:', savedSong.audioUrl);
-    
-    return savedSong;
-  } catch (error) {
-    console.error('Failed to save song to server, using local cache:', error);
-    
-    // Return the local song that's already in cache
-    return localSong;
   }
+  
+  const successful = results.filter(r => r.success).length;
+  console.log(`[SongStorage] Retry complete: ${successful}/${failedSaves.length} successful`);
+  
+  return results;
 }
 
 /**

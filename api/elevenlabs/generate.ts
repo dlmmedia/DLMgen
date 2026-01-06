@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { put } from '@vercel/blob';
 
 /**
  * ElevenLabs Music Generation API
@@ -17,6 +18,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * 
  * IMPORTANT: The ElevenLabs API has a minimum duration of ~15 seconds
  * and maximum of ~330 seconds. Shorter durations will be adjusted.
+ * 
+ * AUDIO PERSISTENCE: Generated audio is immediately saved to Vercel Blob
+ * storage to ensure songs are never lost. The permanent URL is returned
+ * in the response instead of raw audio data.
  */
 
 interface GenerateRequest {
@@ -27,6 +32,7 @@ interface GenerateRequest {
     lyrics?: string;
     style?: string;
     title?: string;
+    songId?: string; // Optional pre-generated ID for the song
 }
 
 export default async function handler(
@@ -166,11 +172,44 @@ export default async function handler(
 
         // The compose endpoint returns audio directly
         const audioBuffer = await elevenLabsResponse.arrayBuffer();
-
-        // Set appropriate headers for audio streaming
-        response.setHeader('Content-Type', 'audio/mpeg');
-        response.setHeader('Content-Length', audioBuffer.byteLength);
-        response.send(Buffer.from(audioBuffer));
+        const audioBytes = Buffer.from(audioBuffer);
+        
+        console.log(`[ElevenLabs] Audio generated successfully, size: ${audioBytes.length} bytes`);
+        
+        // Generate a unique ID for this audio file
+        const songId = request.body.songId || `gen-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        const filename = `audio/${songId}.mp3`;
+        
+        // CRITICAL: Save audio directly to Vercel Blob for permanent storage
+        // This ensures the audio is never lost, even if client-side operations fail
+        console.log(`[ElevenLabs] Saving audio to Vercel Blob: ${filename}`);
+        
+        let blobUrl: string;
+        try {
+            const blob = await put(filename, audioBytes, {
+                access: 'public',
+                contentType: 'audio/mpeg',
+            });
+            blobUrl = blob.url;
+            console.log(`[ElevenLabs] Audio saved permanently to: ${blobUrl}`);
+        } catch (blobError) {
+            console.error('[ElevenLabs] CRITICAL: Failed to save audio to Vercel Blob:', blobError);
+            return response.status(500).json({
+                error: 'Failed to save generated audio permanently. Please try again.',
+                code: 'BLOB_STORAGE_ERROR',
+                details: blobError instanceof Error ? blobError.message : 'Unknown error'
+            });
+        }
+        
+        // Return JSON with the permanent blob URL
+        // The client will use this URL directly - no more temporary blob: URLs
+        return response.status(200).json({
+            success: true,
+            audioUrl: blobUrl,
+            songId: songId,
+            duration: validDuration,
+            size: audioBytes.length
+        });
 
     } catch (error) {
         console.error('Internal Server Error:', error);
