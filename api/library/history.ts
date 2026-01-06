@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql } from '../lib/db';
+import { sql, isDatabaseConfigured } from '../lib/db';
 
 const HISTORY_MAX_ENTRIES = 100;
 
@@ -10,6 +10,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // Check if database is configured
+  if (!isDatabaseConfigured()) {
+    console.error('[History] DATABASE_URL environment variable is not set');
+    return res.status(500).json({
+      error: 'Database not configured',
+      code: 'DATABASE_NOT_CONFIGURED',
+      hint: 'Please set DATABASE_URL environment variable in Vercel Project Settings > Environment Variables'
+    });
   }
 
   try {

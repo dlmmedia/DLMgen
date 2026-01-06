@@ -1,6 +1,6 @@
 import { put } from '@vercel/blob';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql } from '../lib/db';
+import { sql, isDatabaseConfigured } from '../lib/db';
 
 /**
  * Save Song Metadata Endpoint
@@ -71,6 +71,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Check if database is configured
+  if (!isDatabaseConfigured()) {
+    console.error('[SaveSong] DATABASE_URL environment variable is not set');
+    return res.status(500).json({
+      error: 'Database not configured',
+      code: 'DATABASE_NOT_CONFIGURED',
+      hint: 'Please set DATABASE_URL environment variable in Vercel Project Settings > Environment Variables',
+      details: 'The DATABASE_URL should be a Neon PostgreSQL connection string'
+    });
   }
 
   try {
