@@ -16,13 +16,16 @@ function createDbConnection(): NeonQueryFunction<false, false> {
   if (!DATABASE_URL) {
     console.error('[DB] CRITICAL: DATABASE_URL environment variable is not set');
     console.error('[DB] Please configure DATABASE_URL in Vercel Environment Variables');
-    // Return a dummy function that throws helpful errors
-    return (async () => {
-      throw new Error(
+    // Return a tagged template function that throws helpful errors when invoked
+    const errorFn = function(strings: TemplateStringsArray, ..._values: unknown[]): Promise<never> {
+      console.error('[DB] Attempted to query database without DATABASE_URL configured');
+      console.error('[DB] Query template:', strings[0]?.substring(0, 100));
+      return Promise.reject(new Error(
         'Database not configured. Please set DATABASE_URL environment variable in Vercel. ' +
         'Go to: Vercel Dashboard > Project Settings > Environment Variables'
-      );
-    }) as unknown as NeonQueryFunction<false, false>;
+      ));
+    };
+    return errorFn as unknown as NeonQueryFunction<false, false>;
   }
   
   try {
